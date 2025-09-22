@@ -8,75 +8,65 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.blueAccent,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 40, color: Colors.blueAccent),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Ім\'я Користувача', // Замініть на ім'я з моделі
-                  style: TextStyle(color: Colors.white, fontSize: 20),
-                ),
-              ],
-            ),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1E1E1E), Colors.black],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-          if (userType == 'patient') ...[
-            ListTile(
-              leading: const Icon(Icons.personal_injury),
-              title: const Text('Мій медичний профіль'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/health_profile');
-              },
+        ),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.deepPurple, Colors.deepPurpleAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, size: 40, color: Colors.deepPurpleAccent),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Ім\'я Користувача',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Мої записи'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/appointments');
-              },
-            ),
-          ] else if (userType == 'doctor') ...[
-            ListTile(
-              leading: const Icon(Icons.calendar_month),
-              title: const Text('Графік прийомів'),
-              onTap: () {
-                Navigator.pop(context);
-                // Навігація для доктора
-              },
-            ),
+            if (userType == 'patient') ...[
+              _buildListTile(context, Icons.personal_injury, 'Мій медичний профіль', '/health_profile'),
+              _buildListTile(context, Icons.calendar_today, 'Мої записи', '/appointments'),
+            ] else if (userType == 'doctor') ...[
+              _buildListTile(context, Icons.calendar_month, 'Графік прийомів', '/doctor_dashboard'),
+            ],
+            const Divider(color: Colors.white12, height: 20),
+            _buildListTile(context, Icons.auto_awesome, 'AI Асистент', '/ai_assistant'),
+            _buildListTile(context, Icons.logout, 'Вийти', '/'),
           ],
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.auto_awesome),
-            title: const Text('AI Асистент'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/ai_assistant');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Вийти'),
-            onTap: () {
-              Navigator.pushReplacementNamed(context, '/');
-            },
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildListTile(BuildContext context, IconData icon, String title, String route) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, route);
+      },
     );
   }
 }
