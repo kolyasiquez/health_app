@@ -5,6 +5,7 @@ import 'screens/doctor/doctor_dashboard_screen.dart';
 import 'screens/patient/health_profile_screen.dart';
 import 'screens/appointment/appointment_list_screen.dart';
 import 'screens/ai_assistant/ai_assistant_screen.dart';
+import 'screens/auth/registration_screen.dart';
 
 void main() {
   runApp(const HealthApp());
@@ -55,6 +56,7 @@ class HealthApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),
+        '/registration': (context) => const RegistrationScreen(), // <--- Add this new route
         '/patient_dashboard': (context) => const PatientDashboardScreen(),
         '/doctor_dashboard': (context) => const DoctorDashboardScreen(),
         '/health_profile': (context) => const HealthProfileScreen(),

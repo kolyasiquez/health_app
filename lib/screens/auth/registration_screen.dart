@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class RegistrationScreen extends StatelessWidget {
+  const RegistrationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,11 +23,18 @@ class LoginScreen extends StatelessWidget {
                 const Icon(Icons.favorite, size: 100, color: Colors.deepPurpleAccent),
                 const SizedBox(height: 20),
                 Text(
-                  'Мобільний медичний помічник',
+                  'Створити акаунт',
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
+                const TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Ім\'я',
+                    prefixIcon: Icon(Icons.person, color: Colors.deepPurpleAccent),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 const TextField(
                   decoration: InputDecoration(
                     labelText: 'Електронна пошта',
@@ -42,26 +49,33 @@ class LoginScreen extends StatelessWidget {
                     prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const TextField(
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Підтвердіть пароль',
+                    prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
+                  ),
+                ),
                 const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: () {
-                    // Логіка входу
+                    // Логіка реєстрації
                     Navigator.pushReplacementNamed(context, '/patient_dashboard');
                   },
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
                   ),
-                  child: const Text('Увійти'),
+                  child: const Text('Зареєструватися'),
                 ),
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () {
-                    // Використовуємо іменований маршрут, щоб перейти на нову сторінку
-                    // Це кращий підхід, коли маршрут вже визначений у main.dart
-                    Navigator.pushNamed(context, '/registration');
+                    // Повернення до екрану входу
+                    Navigator.pop(context);
                   },
                   child: Text(
-                    'Зареєструватися',
+                    'Вже маєте акаунт? Увійти',
                     style: TextStyle(color: Colors.deepPurpleAccent.shade200),
                   ),
                 ),
