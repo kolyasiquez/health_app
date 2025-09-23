@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/patient/patient_dashboard_screen.dart';
@@ -7,7 +8,10 @@ import 'screens/appointment/appointment_list_screen.dart';
 import 'screens/ai_assistant/ai_assistant_screen.dart';
 import 'screens/auth/registration_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
   runApp(const HealthApp());
 }
 
