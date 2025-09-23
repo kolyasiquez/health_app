@@ -1,7 +1,24 @@
 import 'package:flutter/material.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  // Оголошення контролерів для полів вводу
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    // Звільнення контролерів, коли віджет видаляється
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,24 +45,37 @@ class LoginScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                const TextField(
-                  decoration: InputDecoration(
+                // Поле для електронної пошти
+                TextField(
+                  controller: _emailController, // Прив'язка контролера
+                  decoration: const InputDecoration(
                     labelText: 'Електронна пошта',
                     prefixIcon: Icon(Icons.email, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
+                // Поле для пароля
+                TextField(
+                  controller: _passwordController, // Прив'язка контролера
                   obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Пароль',
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
                     prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 30),
+                // Кнопка "Увійти"
                 ElevatedButton(
                   onPressed: () {
-                    // Логіка входу
+                    // Отримання значень з контролерів
+                    final email = _emailController.text;
+                    final password = _passwordController.text;
+
+                    // TODO: Додайте тут вашу логіку авторизації (наприклад, з Firebase Auth)
+                    // Для тестування виведемо значення в консоль
+                    print('Email: $email');
+                    print('Password: $password');
+
                     Navigator.pushReplacementNamed(context, '/patient_dashboard');
                   },
                   style: ElevatedButton.styleFrom(
@@ -54,10 +84,9 @@ class LoginScreen extends StatelessWidget {
                   child: const Text('Увійти'),
                 ),
                 const SizedBox(height: 10),
+                // Кнопка "Зареєструватися"
                 TextButton(
                   onPressed: () {
-                    // Використовуємо іменований маршрут, щоб перейти на нову сторінку
-                    // Це кращий підхід, коли маршрут вже визначений у main.dart
                     Navigator.pushNamed(context, '/registration');
                   },
                   child: Text(

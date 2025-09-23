@@ -51,7 +51,7 @@ class PatientDashboardScreen extends StatelessWidget {
             _buildFeatureCard(
               context,
               icon: Icons.notifications,
-              title: 'Повідомлення',
+              title: 'Messages',
               subtitle: 'Сповіщення та нагадування',
               onTap: () {
                 // Навігація до екрану повідомлень

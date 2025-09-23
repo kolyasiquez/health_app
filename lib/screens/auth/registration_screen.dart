@@ -1,7 +1,33 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 
-class RegistrationScreen extends StatelessWidget {
+import 'auth_service.dart';
+
+class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
+
+  @override
+  State<RegistrationScreen> createState() => _RegistrationScreenState();
+}
+
+class _RegistrationScreenState extends State<RegistrationScreen> {
+  final _auth = AuthService();
+  // Оголошення контролерів для всіх полів
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    // Важливо звільнити контролери, щоб уникнути витоків пам'яті
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,41 +54,46 @@ class RegistrationScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                const TextField(
-                  decoration: InputDecoration(
+                // Поле для імені
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
                     labelText: 'Ім\'я',
                     prefixIcon: Icon(Icons.person, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
-                  decoration: InputDecoration(
+                // Поле для електронної пошти
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
                     labelText: 'Електронна пошта',
                     prefixIcon: Icon(Icons.email, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
+                // Поле для пароля
+                TextField(
+                  controller: _passwordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Пароль',
                     prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const TextField(
+                // Поле для підтвердження пароля
+                TextField(
+                  controller: _confirmPasswordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Підтвердіть пароль',
                     prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: () {
-                    // Логіка реєстрації
-                    Navigator.pushReplacementNamed(context, '/patient_dashboard');
-                  },
+                  onPressed: _signup, // Викликаємо метод _signup()
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
                   ),
@@ -71,7 +102,6 @@ class RegistrationScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () {
-                    // Повернення до екрану входу
                     Navigator.pop(context);
                   },
                   child: Text(
@@ -85,5 +115,12 @@ class RegistrationScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+  _signup() async{
+    final user = await _auth.createUserWithEmailAndPassword(_emailController.text, _passwordController.text);
+    if(user != null){
+      log("User has been created successfully");
+      Navigator.pushReplacementNamed(context, '/patient_dashboard');
+    }
   }
 }
