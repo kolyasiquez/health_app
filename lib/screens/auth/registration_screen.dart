@@ -1,8 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-
-import 'auth_service.dart';
+import 'package:health_app/screens/auth/auth_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -13,7 +12,7 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _auth = AuthService();
-  // Оголошення контролерів для всіх полів
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -21,7 +20,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   void dispose() {
-    // Важливо звільнити контролери, щоб уникнути витоків пам'яті
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -54,7 +52,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                // Поле для імені
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -63,7 +60,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Поле для електронної пошти
                 TextField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -72,7 +68,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Поле для пароля
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
@@ -82,7 +77,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Поле для підтвердження пароля
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: true,
@@ -93,7 +87,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: _signup, // Викликаємо метод _signup()
+                  onPressed: _signup,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
                   ),
@@ -116,11 +110,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
     );
   }
-  _signup() async{
-    final user = await _auth.createUserWithEmailAndPassword(_emailController.text, _passwordController.text);
-    if(user != null){
+
+  _signup() async {
+    final user = await _auth.createUserWithEmailAndPassword(
+        _emailController.text, _passwordController.text);
+    if (user != null) {
       log("User has been created successfully");
-      Navigator.pushReplacementNamed(context, '/patient_dashboard');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/patient_dashboard');
+      }
+    } else {
+      // Обробка помилки
+      log("Registration failed");
     }
   }
 }

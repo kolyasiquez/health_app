@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:health_app/screens/auth/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -8,13 +11,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Оголошення контролерів для полів вводу
+  final _auth = AuthService();
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    // Звільнення контролерів, коли віджет видаляється
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -45,18 +48,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                // Поле для електронної пошти
                 TextField(
-                  controller: _emailController, // Прив'язка контролера
+                  controller: _emailController,
                   decoration: const InputDecoration(
                     labelText: 'Електронна пошта',
                     prefixIcon: Icon(Icons.email, color: Colors.deepPurpleAccent),
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Поле для пароля
                 TextField(
-                  controller: _passwordController, // Прив'язка контролера
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Password',
@@ -64,27 +65,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                // Кнопка "Увійти"
                 ElevatedButton(
-                  onPressed: () {
-                    // Отримання значень з контролерів
-                    final email = _emailController.text;
-                    final password = _passwordController.text;
-
-                    // TODO: Додайте тут вашу логіку авторизації (наприклад, з Firebase Auth)
-                    // Для тестування виведемо значення в консоль
-                    print('Email: $email');
-                    print('Password: $password');
-
-                    Navigator.pushReplacementNamed(context, '/patient_dashboard');
-                  },
+                  onPressed: _login, // Викликаємо метод _login()
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
                   ),
                   child: const Text('Увійти'),
                 ),
                 const SizedBox(height: 10),
-                // Кнопка "Зареєструватися"
                 TextButton(
                   onPressed: () {
                     Navigator.pushNamed(context, '/registration');
@@ -100,5 +88,24 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  _login() async {
+    final user = await _auth.loginUserWithEmailAndPassword(
+        _emailController.text, _passwordController.text);
+    if (user != null) {
+      log("User logged in successfully");
+      // Перенаправляємо користувача тільки після успішного входу
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/patient_dashboard');
+      }
+    } else {
+      // Обробка помилки входу
+      log("Login failed");
+      // Ви можете тут показати SnackBar з повідомленням про помилку
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Помилка входу. Перевірте пошту та пароль.')),
+      );
+    }
   }
 }
