@@ -18,6 +18,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -41,69 +43,96 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.favorite, size: 100, color: Colors.deepPurpleAccent),
-                const SizedBox(height: 20),
-                Text(
-                  'Створити акаунт',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ім\'я',
-                    prefixIcon: Icon(Icons.person, color: Colors.deepPurpleAccent),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.favorite, size: 100, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Створити акаунт',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Електронна пошта',
-                    prefixIcon: Icon(Icons.email, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Ім\'я',
+                      prefixIcon: Icon(Icons.person, color: Colors.deepPurpleAccent),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Будь ласка, введіть ім\'я';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Пароль',
-                    prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Електронна пошта',
+                      prefixIcon: Icon(Icons.email, color: Colors.deepPurpleAccent),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Будь ласка, введіть електронну пошту';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Підтвердіть пароль',
-                    prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Пароль',
+                      prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Будь ласка, введіть пароль';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: _signup,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(60),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Підтвердіть пароль',
+                      prefixIcon: Icon(Icons.lock, color: Colors.deepPurpleAccent),
+                    ),
+                    validator: (value) {
+                      if (value != _passwordController.text) {
+                        return 'Паролі не збігаються';
+                      }
+                      return null;
+                    },
                   ),
-                  child: const Text('Зареєструватися'),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    'Вже маєте акаунт? Увійти',
-                    style: TextStyle(color: Colors.deepPurpleAccent.shade200),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: _signup,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(60),
+                    ),
+                    child: const Text('Зареєструватися'),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      'Вже маєте акаунт? Увійти',
+                      style: TextStyle(color: Colors.deepPurpleAccent.shade200),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -112,16 +141,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   _signup() async {
-    final user = await _auth.createUserWithEmailAndPassword(
-        _emailController.text, _passwordController.text);
-    if (user != null) {
-      log("User has been created successfully");
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/patient_dashboard');
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      log("Attempting to register user...");
+
+      final result = await _auth.registerUserWithEmailAndPassword(
+        _nameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      log("Received result from AuthService: $result");
+
+      if (result != null) {
+        log("User has been created successfully");
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/patient_dashboard');
+        }
+      } else {
+        log("Registration failed");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to register. Please try again.'),
+            ),
+          );
+        }
       }
-    } else {
-      // Обробка помилки
-      log("Registration failed");
     }
   }
 }
