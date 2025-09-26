@@ -1,10 +1,18 @@
 // lib/screens/patient/health_profile_screen.dart
 
-// ВИДАЛЕНО: import 'dart:io';
-// ВИДАЛЕНО: import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:health_app/services/api_service.dart';
-import '../../constants/avatars.dart';
+// import '../../constants/avatars.dart'; // Припускаємо, що цей файл існує
+
+// Приклад kDefaultPlaceholderPath, якщо він не визначений:
+const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
+// Приклад kDefaultAvatarPaths, якщо він не визначений:
+const List<String> kDefaultAvatarPaths = [
+  'assets/avatars/avatar1.png',
+  'assets/avatars/avatar2.png',
+  'assets/avatars/avatar3.png',
+  'assets/avatars/avatar4.png',
+];
 
 class HealthProfileScreen extends StatefulWidget {
   const HealthProfileScreen({super.key});
@@ -16,10 +24,8 @@ class HealthProfileScreen extends StatefulWidget {
 class _HealthProfileScreenState extends State<HealthProfileScreen> {
   final ApiService _apiService = ApiService();
 
-  // _avatarUrl зберігає шлях до локального асету
   String? _avatarUrl;
   bool _isLoading = true;
-  // ВИДАЛЕНО: File? _imageFile;
 
   @override
   void initState() {
@@ -31,7 +37,6 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     final userData = await _apiService.getUserData();
     if (mounted) {
       setState(() {
-        // Зчитуємо збережений шлях. Якщо його немає, ставимо шлях до заповнювача.
         _avatarUrl = userData?['avatarUrl'] ?? kDefaultPlaceholderPath;
         _isLoading = false;
       });
@@ -40,6 +45,8 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
   // Метод для відкриття діалогу вибору стандартної аватарки
   void _openAvatarAssetSelectionDialog() {
+    final primaryTeal = Theme.of(context).colorScheme.primary;
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -63,16 +70,16 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
                   return InkWell(
                     onTap: () {
                       setState(() {
-                        _avatarUrl = assetPath; // Зберігаємо локальний шлях
+                        _avatarUrl = assetPath;
                       });
-                      _saveProfile(); // Одразу зберігаємо зміну в профілі
+                      _saveProfile();
                       Navigator.pop(context);
                     },
                     child: CircleAvatar(
                       radius: 35,
-                      backgroundColor: Colors.deepPurple.shade100,
+                      backgroundColor: primaryTeal.withOpacity(0.15),
                       child: ClipOval(
-                        child: Image.asset( // ВИКОРИСТОВУЄМО Image.asset
+                        child: Image.asset(
                           assetPath,
                           fit: BoxFit.cover,
                           width: 70,
@@ -97,7 +104,6 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
       setState(() { _isLoading = true; });
 
       try {
-        // Зберігаємо локальний шлях до асету у Firestore
         await _apiService.updateUserProfile({'avatarUrl': _avatarUrl});
 
         if (mounted) {
@@ -119,16 +125,14 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     }
   }
 
-  // ВИДАЛЕНО: _pickImage()
-  // ВИДАЛЕНО: _uploadImage()
-
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ваш профіль'),
-        backgroundColor: Colors.deepPurple,
+        // 🚀 Використовує AppBarTheme (Teal)
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -136,25 +140,25 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Ваша аватарка',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               _buildAvatarWidget(),
               const SizedBox(height: 30),
-              _buildImageButtons(), // Викликаємо оновлену секцію з єдиною кнопкою
+              _buildImageButtons(),
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(20.0),
                   child: Center(child: CircularProgressIndicator()),
                 ),
               const SizedBox(height: 50),
-              const Text(
+              Text(
                 'Тут будуть інші поля профілю (ім\'я, дата народження, тощо)...',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: theme.textTheme.bodyMedium, // Сірий
               ),
             ],
           ),
@@ -166,20 +170,19 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
   // Віджет для відображення аватарки (завжди використовує Image.asset)
   Widget _buildAvatarWidget() {
     Widget imageWidget;
+    final primaryTeal = Theme.of(context).colorScheme.primary;
 
     if (_avatarUrl != null && _avatarUrl!.startsWith('assets/')) {
-      // Збережено шлях до локального асету
       imageWidget = Image.asset(_avatarUrl!, fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 80, color: Colors.deepPurple));
+          errorBuilder: (context, error, stackTrace) => Icon(Icons.person, size: 80, color: primaryTeal));
     } else {
-      // Заповнювач за замовчуванням
-      imageWidget = const Icon(Icons.person, size: 80, color: Colors.deepPurple);
+      imageWidget = Icon(Icons.person, size: 80, color: primaryTeal);
     }
 
     return Center(
       child: CircleAvatar(
         radius: 80,
-        backgroundColor: Colors.deepPurple.shade100,
+        backgroundColor: primaryTeal.withOpacity(0.15),
         child: ClipOval(
           child: imageWidget,
         ),
@@ -189,13 +192,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
   // Кнопка для вибору стандартної аватарки
   Widget _buildImageButtons() {
+    // 🚀 Використовує ElevatedButtonTheme (Помаранчевий)
     return ElevatedButton.icon(
       onPressed: _isLoading ? null : _openAvatarAssetSelectionDialog,
       icon: const Icon(Icons.emoji_people),
       label: const Text('Обрати стандартну аватарку'),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 15),
         minimumSize: const Size(double.infinity, 50),
       ),
