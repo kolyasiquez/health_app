@@ -1,3 +1,5 @@
+// lib/screens/auth/registration_screen.dart (Оновлений код)
+
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -29,6 +31,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (UI залишається без змін)
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -111,17 +114,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
+  // 🚀 ОНОВЛЕНА ЛОГІКА РЕЄСТРАЦІЇ
   _signup() async {
-    final user = await _auth.createUserWithEmailAndPassword(
-        _emailController.text, _passwordController.text);
-    if (user != null) {
-      log("User has been created successfully");
+    // 1. ПЕРЕВІРКА ПАРОЛІВ
+    if (_passwordController.text != _confirmPasswordController.text) {
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Помилка: Паролі не співпадають.')),
+        );
+      }
+      return;
+    }
+
+    // 2. ВИКЛИК СЕРВІСУ З ІМ'ЯМ
+    final user = await _auth.createUserWithEmailAndPassword(
+        _emailController.text,
+        _passwordController.text,
+        _nameController.text // 🚀 Передаємо ім'я
+    );
+
+    if (user != null) {
+      log("User has been created successfully and profile document saved.");
+      if (mounted) {
+        // Успішна реєстрація та створення профілю
         Navigator.pushReplacementNamed(context, '/patient_dashboard');
       }
     } else {
-      // Обробка помилки
-      log("Registration failed");
+      // 3. ОБРОБКА ПОМИЛОК
+      log("Registration failed, user object is null.");
+      if (mounted) {
+        // Показуємо загальну помилку, деталі обробляються в AuthService
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Помилка реєстрації. Перевірте email або пароль (мінімум 6 символів).')),
+        );
+      }
     }
   }
 }

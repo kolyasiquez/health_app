@@ -1,14 +1,26 @@
 // lib/services/api_service.dart
 
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Більше не потрібен 'package:firebase_storage/firebase_storage.dart';
 
 class ApiService {
   final _firestore = FirebaseFirestore.instance;
-  final _storage = FirebaseStorage.instance;
   final _auth = FirebaseAuth.instance;
+
+  // 🚀 НОВИЙ МЕТОД: Створює початковий документ користувача
+  Future<void> createUserDocument(String uid, String email, String name) async {
+    // Встановлюємо стандартну аватарку за замовчуванням
+    const String defaultAvatarPath = 'assets/images/default_person.png';
+
+    await _firestore.collection('users').doc(uid).set({
+      'email': email,
+      'name': name,
+      'createdAt': FieldValue.serverTimestamp(),
+      'avatarUrl': defaultAvatarPath,
+      'age': null,
+    });
+  }
 
   // Метод для отримання даних користувача з Firestore
   Future<Map<String, dynamic>?> getUserData() async {
@@ -19,38 +31,17 @@ class ApiService {
     return doc.data();
   }
 
-  // *** ВИПРАВЛЕНО (НОВИЙ МЕТОД): Оновлює лише документ користувача в Firestore ***
+  // Метод для оновлення документа користувача в Firestore
   Future<void> updateUserProfile(Map<String, dynamic> data) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      throw Exception("User is not signed in.");
+    }
 
-    await _firestore.collection('users').doc(user.uid).update(data);
-  }
-
-  // *** ВИПРАВЛЕНО: Тепер повертає String? (URL), а не void ***
-  Future<String?> uploadAvatar(File imageFile) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return null; // Повертаємо null, якщо немає користувача
-
-      final path = 'avatars/${user.uid}.jpg';
-      final ref = _storage.ref().child(path);
-
-      // Завантажуємо файл
-      final uploadTask = await ref.putFile(imageFile);
-
-      // Отримуємо та повертаємо URL-адресу
-      final imageUrl = await uploadTask.ref.getDownloadURL();
-
-      // *** ВИДАЛЕНО: Оновлення профілю перенесено у health_profile_screen ***
-
-      return imageUrl;
-
-    } catch (e) {
-      print("Error uploading file: $e");
-      return null; // Повертаємо null у разі помилки
+    if (data.isNotEmpty) {
+      // Використовуємо update, оскільки ми гарантували створення документа
+      await _firestore.collection('users').doc(user.uid).update(data);
     }
   }
-
-// ... інші методи ...
+// ВИДАЛЕНО: uploadAvatar та _storage
 }
