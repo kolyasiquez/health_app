@@ -1,4 +1,4 @@
-// lib/main.dart (ВИДАЛЕНО cardTheme)
+// lib/main.dart
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -9,13 +9,15 @@ import 'screens/patient/health_profile_screen.dart';
 import 'screens/appointment/appointment_list_screen.dart';
 import 'screens/ai_assistant/ai_assistant_screen.dart';
 import 'screens/auth/registration_screen.dart';
-// import 'firebase_options.dart';
+// 🚀 ІМПОРТУЄМО НОВИЙ ЕКРАН
+import 'screens/auth/pending_verification_screen.dart';
+// import 'firebase_options.dart'; // Розкоментуйте, якщо використовуєте Firebase CLI
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // ОНОВІТЬ: Вставте ваш код ініціалізації Firebase, наприклад:
   // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(); // Простий варіант, якщо є google-services.json
 
   runApp(const HealthApp());
 }
@@ -109,10 +111,6 @@ class HealthApp extends StatelessWidget {
           hintStyle: const TextStyle(color: Color(0xFF999999)),
           prefixIconColor: primaryTeal,
         ),
-
-        // 🗑️ КАРТКИ (СЕКЦІЯ ВИДАЛЕНА, ЩОБ УНИКНУТИ ПОМИЛКИ СУМІСНОСТІ ТИПІВ)
-        // cardTheme: const CardTheme(...) // ВИДАЛЕНО
-
       ),
       initialRoute: '/',
       routes: {
@@ -123,6 +121,8 @@ class HealthApp extends StatelessWidget {
         '/health_profile': (context) => const HealthProfileScreen(),
         '/appointments': (context) => const AppointmentListScreen(),
         '/ai_assistant': (context) => const AIAssistantScreen(),
+        // 🚀 ДОДАЄМО НОВИЙ МАРШРУТ
+        '/pending_verification': (context) => const PendingVerificationScreen(),
       },
     );
   }

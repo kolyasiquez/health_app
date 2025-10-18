@@ -1,8 +1,11 @@
 // lib/screens/auth/registration_screen.dart
 
 import 'dart:developer';
+// import 'dart:io'; // 🚀 ВИДАЛЕНО
 import 'package:flutter/material.dart';
 import 'package:health_app/screens/auth/auth_service.dart';
+import 'package:health_app/services/api_service.dart';
+// import 'package:image_picker/image_picker.dart'; // 🚀 ВИДАЛЕНО
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -13,11 +16,17 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _auth = AuthService();
+  // final _apiService = ApiService(); // 🚀 БІЛЬШЕ НЕ ПОТРІБЕН ТУТ
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _bioController = TextEditingController(); // 🚀 ДЛЯ БІОГРАФІЇ ЛІКАРЯ
+
+  UserRole _selectedRole = UserRole.patient;
+  bool _isLoading = false;
+  // File? _licenseFile; // 🚀 ВИДАЛЕНО
 
   @override
   void dispose() {
@@ -25,8 +34,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _bioController.dispose(); // 🚀
     super.dispose();
   }
+
+  // 🚀 МЕТОД '_pickLicenseFile' ВИДАЛЕНО
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +46,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final primaryTeal = theme.colorScheme.primary;
 
     return Scaffold(
-      // 🚀 Використовуємо світлий фон Scaffold з теми
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 🚀 Іконка тепер бірюзова
+              const SizedBox(height: 60),
               Icon(Icons.favorite, size: 100, color: primaryTeal),
               const SizedBox(height: 20),
               Text(
@@ -50,7 +61,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
-              // 🚀 Поля введення використовують нову InputDecorationTheme
+
+              SegmentedButton<UserRole>(
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: primaryTeal.withOpacity(0.1),
+                  selectedForegroundColor: primaryTeal,
+                  foregroundColor: theme.textTheme.bodyMedium?.color,
+                ),
+                segments: const [
+                  ButtonSegment<UserRole>(
+                    value: UserRole.patient,
+                    label: Text('Я - Пацієнт'),
+                    icon: Icon(Icons.person_outline),
+                  ),
+                  ButtonSegment<UserRole>(
+                    value: UserRole.doctor,
+                    label: Text('Я - Лікар'),
+                    icon: Icon(Icons.medical_services_outlined),
+                  ),
+                ],
+                selected: {_selectedRole},
+                onSelectionChanged: (Set<UserRole> newSelection) {
+                  setState(() {
+                    _selectedRole = newSelection.first;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 30),
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -61,6 +99,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               const SizedBox(height: 20),
               TextField(
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Електронна пошта',
                   prefixIcon: Icon(Icons.email),
@@ -84,18 +123,44 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   prefixIcon: Icon(Icons.lock),
                 ),
               ),
+
+              // 🚀🚀🚀 ОНОВЛЕНІ ПОЛЯ ДЛЯ ЛІКАРЯ (ТІЛЬКИ ТЕКСТ) 🚀🚀🚀
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                firstChild: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    // Поле для Біографії
+                    TextField(
+                      controller: _bioController,
+                      decoration: const InputDecoration(
+                        labelText: 'Про себе (кваліфікація, досвід)',
+                        prefixIcon: Icon(Icons.description_outlined),
+                      ),
+                      maxLines: 3,
+                    ),
+                    // 🚀 КНОПКА ЗАВАНТАЖЕННЯ ФАЙЛУ ВИДАЛЕНА
+                  ],
+                ),
+                secondChild: Container(), // Порожній контейнер
+                crossFadeState: _selectedRole == UserRole.doctor
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+              ),
+              // 🚀🚀🚀 КІНЕЦЬ БЛОКУ ДЛЯ ЛІКАРЯ 🚀🚀🚀
+
               const SizedBox(height: 30),
-              // 🚀 Кнопка використовує ElevatedButtonTheme (помаранчевий)
               ElevatedButton(
-                onPressed: _signup,
-                child: const Text('Зареєструватися'),
+                onPressed: _isLoading ? null : _signup,
+                child: _isLoading
+                    ? const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                )
+                    : const Text('Зареєструватися'),
               ),
               const SizedBox(height: 10),
-              // 🚀 TextButton використовує TextButtonTheme (бірюзовий)
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: _isLoading ? null : () => Navigator.pop(context),
                 child: const Text(
                   'Вже маєте акаунт? Увійти',
                 ),
@@ -107,7 +172,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
-  // 🚀 ОНОВЛЕНА ЛОГІКА РЕЄСТРАЦІЇ
+  // 🚀🚀🚀 СПРОЩЕНА ЛОГІКА РЕЄСТРАЦІЇ 🚀🚀🚀
   _signup() async {
     // 1. ПЕРЕВІРКА ПАРОЛІВ
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -119,26 +184,66 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    // 2. ВИКЛИК СЕРВІСУ З ІМ'ЯМ
-    final user = await _auth.createUserWithEmailAndPassword(
-        _emailController.text,
-        _passwordController.text,
-        _nameController.text
-    );
-
-    if (user != null) {
-      log("User has been created successfully and profile document saved.");
-      if (mounted) {
-        // Успішна реєстрація та створення профілю
-        Navigator.pushReplacementNamed(context, '/patient_dashboard');
+    // 2. ДОДАТКОВА ПЕРЕВІРКА ДЛЯ ЛІКАРЯ
+    if (_selectedRole == UserRole.doctor) {
+      if (_bioController.text.trim().isEmpty) { // 🚀 Перевіряємо тільки 'bio'
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Будь ласка, заповніть інформацію про себе.')),
+          );
+        }
+        return;
       }
-    } else {
-      // 3. ОБРОБКА ПОМИЛОК
-      log("Registration failed, user object is null.");
+    }
+
+    setState(() { _isLoading = true; });
+
+    try {
+      // 3. СТВОРЮЄМО КОРИСТУВАЧА. 'bio' передається одразу.
+      final user = await _auth.createUserWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+        _nameController.text.trim(),
+        _selectedRole,
+        // 🚀 Передаємо 'bio' тільки якщо це лікар
+        bio: _selectedRole == UserRole.doctor
+            ? _bioController.text.trim()
+            : null,
+      );
+
+      if (user == null) {
+        throw Exception("Не вдалося створити користувача.");
+      }
+
+      // 4. ОБРОБКА ЗАЛЕЖНО ВІД РОЛІ
+      if (_selectedRole == UserRole.doctor) {
+        // 4а. ЛІКАР: Все готово, перекидаємо на верифікацію
+        // (Файл більше не завантажуємо)
+        log("Doctor created, pending verification.");
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/pending_verification');
+        }
+
+      } else {
+        // 4б. ПАЦІЄНТ: Все готово, перекидаємо на дашборд
+        log("Patient created successfully.");
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/patient_dashboard');
+        }
+      }
+
+    } catch (e) {
+      log("Registration failed: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Помилка реєстрації. Перевірте email або пароль (мінімум 6 символів).')),
+          SnackBar(content: Text('Помилка реєстрації: ${e.toString()}')),
         );
+      }
+    } finally {
+      if(mounted) {
+        setState(() { _isLoading = false; });
       }
     }
   }

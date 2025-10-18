@@ -1,45 +1,189 @@
 // lib/services/api_service.dart
 
+import 'dart:developer';
+// import 'dart:io'; // 🚀 ВИДАЛЕНО
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Більше не потрібен 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_storage/firebase_storage.dart'; // 🚀 ВИДАЛЕНО
+
+// 🚀 ВИЗНАЧАЄМО РОЛІ КОРИСТУВАЧІВ
+enum UserRole { patient, doctor, admin }
 
 class ApiService {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  // final _storage = FirebaseStorage.instance; // 🚀 ВИДАЛЕНО
 
-  // This method is for creating a user document in Firestore (users collection at this moment)
-  Future<void> createUserDocument(String uid, String email, String name) async {
-    const String defaultAvatarPath = 'assets/images/default_person.png'; // Put default avatar
+  // 헬 Допоміжний метод для отримання шляху до колекції на основі ролі
+  String _getCollectionForRole(UserRole role) {
+    switch (role) {
+      case UserRole.patient:
+        return 'patients';
+      case UserRole.doctor:
+        return 'doctors';
+      case UserRole.admin:
+        return 'admins';
+    }
+  }
 
-    await _firestore.collection('users').doc(uid).set({
+  // 헬 Допоміжний метод для отримання шляху до колекції з текстової назви ролі
+  String _getCollectionForRoleString(String role) {
+    switch (role) {
+      case 'patient':
+        return 'patients';
+      case 'doctor':
+      case 'pending_doctor': // 🚀 ОБИДВІ РОЛІ ЖИВУТЬ В КОЛЕКЦІЇ 'doctors'
+        return 'doctors';
+      case 'admin':
+        return 'admins';
+      default:
+        throw Exception('Невідома роль: $role');
+    }
+  }
+
+  // 🚀 ОБМЕЖЕННЯ ДЛЯ АДМІНІВ
+  Future<void> checkAdminLimit() async {
+    final adminQuery = await _firestore.collection('admins').limit(2).get();
+    if (adminQuery.docs.length >= 2) {
+      throw Exception("Ліміт адміністраторів (2) вже досягнуто.");
+    }
+  }
+
+  // 🚀 ОНОВЛЕНО: Тепер приймає 'bio' (для лікарів) одразу
+  Future<void> createUserDocument(String uid, String email, String name, UserRole role, {String? bio}) async {
+    const String defaultAvatarPath = 'assets/images/default_person.png';
+    final String collectionPath = _getCollectionForRole(role);
+
+    // 🚀 Визначаємо роль для запису в БД
+    String documentRole;
+    if (role == UserRole.doctor) {
+      documentRole = 'pending_doctor';
+    } else if (role == UserRole.patient) {
+      documentRole = 'patient';
+    } else {
+      documentRole = 'admin';
+    }
+
+    final userData = {
       'email': email,
       'name': name,
       'createdAt': FieldValue.serverTimestamp(),
       'avatarUrl': defaultAvatarPath,
       'age': null,
-    });
+      'role': documentRole, // 🚀 ЗБЕРІГАЄМО НОВУ РОЛЬ
+      'bio': (role == UserRole.doctor) ? bio : null, // 🚀 ЗБЕРІГАЄМО БІО ОДРАЗУ
+      'licenseUrl': null, // 🚀 Залишаємо це поле як null (ми його не використовуємо)
+    };
+
+    // Використовуємо пакетний запис (batch) для атомарності
+    final batch = _firestore.batch();
+
+    // 1. Створюємо профіль користувача у відповідній колекції
+    final userDocRef = _firestore.collection(collectionPath).doc(uid);
+    batch.set(userDocRef, userData);
+
+    // 2. Створюємо "довідковий" запис про роль
+    final roleDocRef = _firestore.collection('user_roles').doc(uid);
+    batch.set(roleDocRef, {'role': documentRole});
+
+    await batch.commit();
   }
 
-  // Method for getting user data from Firestore
+  // 🚀 МЕТОД 'uploadLicense' ВИДАЛЕНО
+  // 🚀 МЕТОД 'updateDoctorRegistration' ВИДАЛЕНО
+
+  // 🚀 ОНОВЛЕНИЙ МЕТОД ОТРИМАННЯ ДАНИХ
   Future<Map<String, dynamic>?> getUserData() async {
     final user = _auth.currentUser;
     if (user == null) return null;
 
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    return doc.data();
+    try {
+      // 1. Отримуємо роль користувача з довідкової колекції
+      final roleDoc = await _firestore.collection('user_roles').doc(user.uid).get();
+      if (!roleDoc.exists) {
+        log('Помилка: Не знайдено документ ролі для користувача ${user.uid}');
+        return null;
+      }
+
+      final role = roleDoc.data()?['role'] as String?;
+      if (role == null) {
+        log('Помилка: Документ ролі порожній для користувача ${user.uid}');
+        return null;
+      }
+
+      // 2. Отримуємо дані профілю з відповідної колекції
+      final collectionPath = _getCollectionForRoleString(role);
+      final doc = await _firestore.collection(collectionPath).doc(user.uid).get();
+      return doc.data();
+
+    } catch (e) {
+      log('Помилка під час отримання даних користувача: $e');
+      return null;
+    }
   }
 
-  // Метод для оновлення документа користувача в Firestore
+  // 🚀 ОНОВЛЕНИЙ МЕТОД ОНОВЛЕННЯ ПРОФІЛЮ
   Future<void> updateUserProfile(Map<String, dynamic> data) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw Exception("User is not signed in.");
+      throw Exception("Користувач не ввійшов у систему.");
     }
+    if (data.isEmpty) return;
 
-    if (data.isNotEmpty) {
-      // Використовуємо update, оскільки ми гарантували створення документа
-      await _firestore.collection('users').doc(user.uid).update(data);
+    try {
+      // 1. Отримуємо роль користувача
+      final roleDoc = await _firestore.collection('user_roles').doc(user.uid).get();
+      if (!roleDoc.exists) {
+        throw Exception('Помилка: Не знайдено документ ролі.');
+      }
+      final role = roleDoc.data()?['role'] as String?;
+      if (role == null) {
+        throw Exception('Помилка: Документ ролі порожній.');
+      }
+
+      // 2. Оновлюємо документ у відповідній колекції
+      final collectionPath = _getCollectionForRoleString(role);
+      await _firestore.collection(collectionPath).doc(user.uid).update(data);
+
+    } catch (e) {
+      log('Помилка під час оновлення профілю: $e');
+      throw Exception('Не вдалося оновити профіль: $e');
     }
+  }
+
+  // --- МЕТОДИ ДЛЯ АДМІНА ---
+
+  // Метод для Адміна: Отримати список лікарів на верифікацію
+  Future<QuerySnapshot> getPendingDoctors() {
+    return _firestore
+        .collection('doctors')
+        .where('role', isEqualTo: 'pending_doctor')
+        .get();
+  }
+
+  // Метод для Адміна: Схвалити лікаря
+  Future<void> approveDoctor(String uid) async {
+    final batch = _firestore.batch();
+
+    final docRef = _firestore.collection('doctors').doc(uid);
+    batch.update(docRef, {'role': 'doctor'});
+
+    final roleRef = _firestore.collection('user_roles').doc(uid);
+    batch.update(roleRef, {'role': 'doctor'});
+
+    await batch.commit();
+  }
+
+  // Метод для Адміна: Відхилити лікаря (видаляє тільки з БД)
+  Future<void> denyDoctor(String uid) async {
+    final batch = _firestore.batch();
+
+    final docRef = _firestore.collection('doctors').doc(uid);
+    batch.delete(docRef);
+
+    final roleRef = _firestore.collection('user_roles').doc(uid);
+    batch.delete(roleRef);
+
+    await batch.commit();
   }
 }
