@@ -17,6 +17,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   List<QueryDocumentSnapshot> _pendingDoctors = [];
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -24,9 +25,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _fetchPendingDoctors();
   }
 
-  // Отримуємо список лікарів, що очікують
   Future<void> _fetchPendingDoctors() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
     try {
       final snapshot = await _apiService.getPendingDoctors();
       setState(() {
@@ -40,15 +43,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           SnackBar(content: Text('Помилка завантаження даних: $e')),
         );
       }
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Помилка завантаження: $e \n\n(Перевірте Debug Console на посилання для створення індексу Firestore!)';
+      });
     }
   }
 
-  // Схвалюємо лікаря
   Future<void> _approveDoctor(String uid) async {
     try {
       await _apiService.approveDoctor(uid);
-      // Оновлюємо UI, видаляючи лікаря зі списку
       setState(() {
         _pendingDoctors.removeWhere((doc) => doc.id == uid);
       });
@@ -62,33 +66,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
     } catch (e) {
       log('Помилка схвалення: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Помилка схвалення: $e')),
+        );
+      }
     }
   }
 
-  // Відхиляємо лікаря
+  // 🚀🚀🚀 ОНОВЛЕНИЙ МЕТОД _denyDoctor - ЗНОВУ ВИКЛИКАЄ ВИДАЛЕННЯ 🚀🚀🚀
+  // Відхиляємо лікаря та видаляємо його дані з Firestore
   Future<void> _denyDoctor(String uid) async {
     try {
-      // ⚠️ ВАЖЛИВА ПРИМІТКА:
-      // Цей метод видаляє ТІЛЬКИ дані з Firestore (patients/doctors/user_roles).
-      // Він НЕ видаляє акаунт з Firebase Authentication.
-      // Вам доведеться робити це вручну через консоль Firebase.
+      // Викликаємо метод сервісу для видалення документів Firestore
       await _apiService.denyDoctor(uid);
 
+      // Оновлюємо UI
       setState(() {
         _pendingDoctors.removeWhere((doc) => doc.id == uid);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Заявку лікаря відхилено. Дані видалено.'),
-            backgroundColor: Colors.red,
+            content: Text('Лікаря відхилено. Дані профілю видалено.'),
+            backgroundColor: Colors.red, // Повертаємо червоний колір
           ),
         );
       }
     } catch (e) {
-      log('Помилка відхилення: $e');
+      log('Помилка відхилення та видалення: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Помилка видалення даних: $e')),
+        );
+      }
     }
   }
+  // 🚀🚀🚀 КІНЕЦЬ ОНОВЛЕННЯ 🚀🚀🚀
 
 
   @override
@@ -99,12 +113,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       appBar: AppBar(
         title: const Text('Адмін-панель'),
         actions: [
-          // Кнопка оновлення списку
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchPendingDoctors,
           ),
-          // Кнопка виходу
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -118,84 +130,116 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _pendingDoctors.isEmpty
-          ? Center(
+          : _buildDoctorList(theme),
+    );
+  }
+
+  Widget _buildDoctorList(ThemeData theme) {
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _errorMessage,
+            style: const TextStyle(color: Colors.red, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    if (_pendingDoctors.isEmpty) {
+      return Center(
         child: Text(
           'Немає заявок на верифікацію.',
           style: theme.textTheme.titleMedium,
         ),
-      )
-          : ListView.builder(
-        itemCount: _pendingDoctors.length,
-        itemBuilder: (context, index) {
-          final doctor = _pendingDoctors[index];
-          final data = doctor.data() as Map<String, dynamic>;
+      );
+    }
 
-          // Використовуємо ExpansionTile, щоб показати 'bio'
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ExpansionTile(
-              leading: CircleAvatar(
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                child: Text(
-                  data['name']?.substring(0, 1) ?? '?',
-                  style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
-                ),
-              ),
-              title: Text(data['name'] ?? 'Без імені', style: theme.textTheme.titleMedium),
-              subtitle: Text(data['email'] ?? 'Без пошти'),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _pendingDoctors.length,
+      itemBuilder: (context, index) {
+        final doctor = _pendingDoctors[index];
+        final data = doctor.data() as Map<String, dynamic>;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Біографія (кваліфікація, досвід):', style: theme.textTheme.bodySmall),
-                      const SizedBox(height: 4),
-                      Text(
-                        data['bio'] ?? 'Не вказано',
-                        style: theme.textTheme.bodyLarge,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                      child: Text(
+                        data['name']?.substring(0, 1) ?? '?',
+                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 16),
-                      // Кнопки дій
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextButton(
-                            onPressed: () => _showDenyDialog(doctor.id),
-                            style: TextButton.styleFrom(foregroundColor: Colors.red),
-                            child: const Text('Відхилити'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () => _approveDoctor(doctor.id),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Схвалити'),
-                          ),
+                          Text(data['name'] ?? 'Без імені', style: theme.textTheme.titleMedium),
+                          Text(data['email'] ?? 'Без пошти', style: theme.textTheme.bodyMedium),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24.0),
+                Text(
+                    'Біографія (кваліфікація, досвід):',
+                    style: theme.textTheme.bodySmall
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data['bio'] ?? 'Не вказано',
+                  style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => _showDenyDialog(doctor.id),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Відхилити'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => _approveDoctor(doctor.id),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 36), // ВАЖЛИВО: Залишити це виправлення
+                      ),
+                      child: const Text('Схвалити'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
-  // Діалог підтвердження перед видаленням
+  // 🚀🚀🚀 ОНОВЛЕНИЙ ДІАЛОГ _showDenyDialog 🚀🚀🚀
+  // Діалог підтвердження перед видаленням даних
   void _showDenyDialog(String uid) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Підтвердити дію'),
+        title: const Text('Підтвердити видалення'), // Оновлено
         content: const Text(
-          'Ви впевнені, що хочете відхилити цього лікаря? Його дані буде видалено з бази.\n\n(Примітка: акаунт входу (Authentication) потрібно буде видалити вручну в консолі Firebase.)',
+          'Ви впевнені, що хочете відхилити та видалити дані цього лікаря з бази?\n\n(ВАЖЛИВО: Після цього вам потрібно буде вручну видалити його акаунт з Firebase Authentication.)', // Оновлено
         ),
         actions: [
           TextButton(
@@ -203,15 +247,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Відхилити'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red), // Повертаємо червоний
+            child: const Text('Видалити дані'), // Оновлено
             onPressed: () {
               Navigator.of(ctx).pop();
-              _denyDoctor(uid);
+              _denyDoctor(uid); // Викликаємо оновлений метод
             },
           ),
         ],
       ),
     );
   }
+// 🚀🚀🚀 КІНЕЦЬ ОНОВЛЕННЯ 🚀🚀🚀
 }

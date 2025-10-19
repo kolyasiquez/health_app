@@ -158,29 +158,31 @@ class ApiService {
   // Метод для Адміна: Схвалити лікаря
   Future<void> approveDoctor(String uid) async {
     final batch = _firestore.batch();
-
     final docRef = _firestore.collection('doctors').doc(uid);
     batch.update(docRef, {'role': 'doctor'});
-
     final roleRef = _firestore.collection('user_roles').doc(uid);
     batch.update(roleRef, {'role': 'doctor'});
-
     await batch.commit();
   }
 
+  // 🚀🚀🚀 ПОВЕРТАЄМО МЕТОД denyDoctor З ВИДАЛЕННЯМ ДАНИХ 🚀🚀🚀
   // Метод для Адміна: Відхилити лікаря (видаляє тільки з БД)
   Future<void> denyDoctor(String uid) async {
     // ⚠️ ВАЖЛИВО: Цей метод не видаляє акаунт з Firebase Auth.
-    // Це потрібно робити вручну в консолі Firebase.
 
     final batch = _firestore.batch();
 
+    // Видаляємо профіль з колекції 'doctors'
     final docRef = _firestore.collection('doctors').doc(uid);
     batch.delete(docRef);
 
+    // Видаляємо запис про роль з 'user_roles'
     final roleRef = _firestore.collection('user_roles').doc(uid);
     batch.delete(roleRef);
 
     await batch.commit();
+    log("Firestore data deleted for user $uid. Remember to delete from Authentication manually.");
   }
+// 🚀🚀🚀 КІНЕЦЬ ПОВЕРНЕНОГО МЕТОДУ 🚀🚀🚀
+
 }
