@@ -1,11 +1,9 @@
 // lib/screens/auth/registration_screen.dart
 
 import 'dart:developer';
-// import 'dart:io'; // 🚀 ВИДАЛЕНО
 import 'package:flutter/material.dart';
 import 'package:health_app/screens/auth/auth_service.dart';
 import 'package:health_app/services/api_service.dart';
-// import 'package:image_picker/image_picker.dart'; // 🚀 ВИДАЛЕНО
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -16,7 +14,6 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _auth = AuthService();
-  // final _apiService = ApiService(); // 🚀 БІЛЬШЕ НЕ ПОТРІБЕН ТУТ
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -26,7 +23,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   UserRole _selectedRole = UserRole.patient;
   bool _isLoading = false;
-  // File? _licenseFile; // 🚀 ВИДАЛЕНО
 
   @override
   void dispose() {
@@ -34,11 +30,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _bioController.dispose(); // 🚀
+    _bioController.dispose();
     super.dispose();
   }
-
-  // 🚀 МЕТОД '_pickLicenseFile' ВИДАЛЕНО
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +133,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       maxLines: 3,
                     ),
-                    // 🚀 КНОПКА ЗАВАНТАЖЕННЯ ФАЙЛУ ВИДАЛЕНА
                   ],
                 ),
                 secondChild: Container(), // Порожній контейнер
@@ -220,7 +213,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       // 4. ОБРОБКА ЗАЛЕЖНО ВІД РОЛІ
       if (_selectedRole == UserRole.doctor) {
         // 4а. ЛІКАР: Все готово, перекидаємо на верифікацію
-        // (Файл більше не завантажуємо)
         log("Doctor created, pending verification.");
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/pending_verification');

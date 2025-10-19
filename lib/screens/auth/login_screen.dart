@@ -3,7 +3,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:health_app/screens/auth/auth_service.dart';
-import 'package:health_app/services/api_service.dart'; // 🚀 ІМПОРТУЄМО API SERVICE
+import 'package:health_app/services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,12 +14,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
-  final _apiService = ApiService(); // 🚀 ІНІЦІАЛІЗУЄМО API SERVICE
+  final _apiService = ApiService();
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  // 🚀 СТАН ДЛЯ ЗАВАНТАЖЕННЯ
   bool _isLoading = false;
 
   @override
@@ -41,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 100), // Додамо відступ зверху
+              const SizedBox(height: 100),
               Icon(Icons.favorite, size: 100, color: primaryTeal),
               const SizedBox(height: 20),
               Text(
@@ -69,7 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
               ElevatedButton(
-                // 🚀 Блокуємо кнопку під час завантаження
                 onPressed: _isLoading ? null : _login,
                 child: _isLoading
                     ? const CircularProgressIndicator(
@@ -95,31 +92,26 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 🚀🚀🚀 ОНОВЛЕНА ЛОГІКА ВХОДУ З ПЕРЕВІРКОЮ РОЛІ 🚀🚀🚀
   _login() async {
     setState(() { _isLoading = true; });
 
     try {
-      // 1. ВХІД В FIREBASE AUTH
       final user = await _auth.loginUserWithEmailAndPassword(
           _emailController.text.trim(), _passwordController.text);
 
       if (user != null && mounted) {
         log("User logged in successfully: ${user.uid}");
-
-        // 2. ОТРИМАННЯ ДАНИХ КОРИСТУВАЧА (І РОЛІ) З FIRESTORE
         final userData = await _apiService.getUserData();
 
         if (userData == null) {
-          // Якщо користувач є в Auth, але немає в Firestore (напр. видалено адміном)
-          await _auth.signOut(); // Виходимо з системи
+          await _auth.signOut();
           throw Exception("Профіль користувача не знайдено. Можливо, його було видалено.");
         }
 
         final String role = userData['role'];
         log("User role is: $role");
 
-        // 3. ПЕРЕНАПРАВЛЕННЯ НА ОСНОВІ РОЛІ
+        // 🚀 ОНОВЛЕНА ЛОГІКА НАВІГАЦІЇ
         switch (role) {
           case 'patient':
             Navigator.pushReplacementNamed(context, '/patient_dashboard');
@@ -127,19 +119,18 @@ class _LoginScreenState extends State<LoginScreen> {
           case 'doctor':
             Navigator.pushReplacementNamed(context, '/doctor_dashboard');
             break;
-          case 'pending_doctor': // 🚀 НОВИЙ ВИПАДОК
+          case 'pending_doctor':
             Navigator.pushReplacementNamed(context, '/pending_verification');
             break;
           case 'admin':
-          // TODO: Створити /admin_dashboard
-            Navigator.pushReplacementNamed(context, '/doctor_dashboard');
+          // 🚀 Тепер перенаправляє на новий екран адміна
+            Navigator.pushReplacementNamed(context, '/admin_dashboard');
             break;
           default:
             throw Exception("Невідома роль користувача: $role");
         }
       }
     } catch (e) {
-      // 4. ОБРОБКА ПОМИЛОК
       log("Login failed: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

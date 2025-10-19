@@ -1,10 +1,8 @@
 // lib/services/api_service.dart
 
 import 'dart:developer';
-// import 'dart:io'; // 🚀 ВИДАЛЕНО
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:firebase_storage/firebase_storage.dart'; // 🚀 ВИДАЛЕНО
 
 // 🚀 ВИЗНАЧАЄМО РОЛІ КОРИСТУВАЧІВ
 enum UserRole { patient, doctor, admin }
@@ -12,7 +10,6 @@ enum UserRole { patient, doctor, admin }
 class ApiService {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  // final _storage = FirebaseStorage.instance; // 🚀 ВИДАЛЕНО
 
   // 헬 Допоміжний метод для отримання шляху до колекції на основі ролі
   String _getCollectionForRole(UserRole role) {
@@ -72,7 +69,7 @@ class ApiService {
       'age': null,
       'role': documentRole, // 🚀 ЗБЕРІГАЄМО НОВУ РОЛЬ
       'bio': (role == UserRole.doctor) ? bio : null, // 🚀 ЗБЕРІГАЄМО БІО ОДРАЗУ
-      'licenseUrl': null, // 🚀 Залишаємо це поле як null (ми його не використовуємо)
+      'licenseUrl': null, // (Ми більше не використовуємо це, але лишаємо для структури)
     };
 
     // Використовуємо пакетний запис (batch) для атомарності
@@ -88,9 +85,6 @@ class ApiService {
 
     await batch.commit();
   }
-
-  // 🚀 МЕТОД 'uploadLicense' ВИДАЛЕНО
-  // 🚀 МЕТОД 'updateDoctorRegistration' ВИДАЛЕНО
 
   // 🚀 ОНОВЛЕНИЙ МЕТОД ОТРИМАННЯ ДАНИХ
   Future<Map<String, dynamic>?> getUserData() async {
@@ -176,6 +170,9 @@ class ApiService {
 
   // Метод для Адміна: Відхилити лікаря (видаляє тільки з БД)
   Future<void> denyDoctor(String uid) async {
+    // ⚠️ ВАЖЛИВО: Цей метод не видаляє акаунт з Firebase Auth.
+    // Це потрібно робити вручну в консолі Firebase.
+
     final batch = _firestore.batch();
 
     final docRef = _firestore.collection('doctors').doc(uid);

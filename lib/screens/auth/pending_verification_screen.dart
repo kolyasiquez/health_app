@@ -50,7 +50,7 @@ class PendingVerificationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               Text(
-                'Адміністратор перевірить вашу ліцензію та біографію. Зазвичай це займає до 24 годин.',
+                'Адміністратор перевірить вашу інформацію. Зазвичай це займає до 24 годин.',
                 style: theme.textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
