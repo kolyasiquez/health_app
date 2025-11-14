@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:health_app/services/api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Потрібно для QuerySnapshot
 
-// 1. Конвертуємо у StatefulWidget, щоб керувати станом (текст пошуку, список)
 class BookAppointmentScreen extends StatefulWidget {
   const BookAppointmentScreen({super.key});
 
@@ -9,53 +10,65 @@ class BookAppointmentScreen extends StatefulWidget {
 }
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
-  // 2. Контролер для керування текстом у полі пошуку
   final TextEditingController _searchController = TextEditingController();
+  final _apiService = ApiService();
 
-  // 3. Повний список лікарів (у реальному додатку це б прийшло з API)
-  final List<String> _allDoctors = [
-    'Олександр Петренко',
-    'Ірина Ковальчук',
-    'Василь Сидоренко',
-    'Олена Мельник',
-    'Андрій Шевченко',
-    'Наталія Бойко',
-    'Сергій Лисенко',
-    'Тетяна Кравченко',
-    'Михайло Захаренко',
-    'Вікторія Поліщук',
-    'Yebiwe Lesnoe',
-    'Osla Harmoshka',
-    'Hz CheNapisat'
-  ];
+  // Додаємо стан завантаження
+  bool _isLoading = true;
 
-  // 4. Список, який ми будемо реально показувати (фільтрований)
+  // Списки, як і раніше, будуть List<String>
+  List<String> _allDoctors = [];
   List<String> _filteredDoctors = [];
 
-  // 5. Ініціалізуємо стан віджета
   @override
   void initState() {
     super.initState();
-    // На початку, відфільтрований список = повний список
-    _filteredDoctors = _allDoctors;
-    // Додаємо "слухача" до контролера, щоб реагувати на введення тексту
     _searchController.addListener(_filterDoctors);
+    // Запускаємо асинхронне завантаження
+    _loadDoctorsFromServer();
   }
 
-  // 6. Метод, який буде викликатись при кожній зміні тексту в полі пошуку
+  /// Новий метод для АСИНХРОННОГО завантаження
+  Future<void> _loadDoctorsFromServer() async {
+    try {
+      final QuerySnapshot snapshot = await _apiService.getDoctorsList();
+
+      // "Розпаковуємо" QuerySnapshot у List<String>
+      final doctorsList = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        // Переконайтеся, що поле 'name' існує у ваших документах
+        return data?['name'] as String? ?? 'Лікар без імені';
+      }).toList();
+
+      // Оновлюємо стан, коли дані прийшли
+      if (mounted) {
+        setState(() {
+          _allDoctors = doctorsList;
+          _filteredDoctors = doctorsList;
+          _isLoading = false; // Завантаження завершено
+        });
+      }
+    } catch (e) {
+      print('Помилка завантаження лікарів: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Метод фільтрації (без змін)
   void _filterDoctors() {
     final query = _searchController.text.toLowerCase();
-    // Використовуємо setState, щоб Flutter перебудував UI з новими даними
     setState(() {
       _filteredDoctors = _allDoctors.where((doctor) {
-        // Проста логіка пошуку: чи містить ім'я лікаря введений текст
         final doctorLower = doctor.toLowerCase();
         return doctorLower.contains(query);
       }).toList();
     });
   }
 
-  // 7. Важливо очистити контролер, коли віджет видаляється
   @override
   void dispose() {
     _searchController.removeListener(_filterDoctors);
@@ -63,25 +76,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     super.dispose();
   }
 
-  // 8. Будуємо сам інтерфейс
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Book an appointment'),
+        title: const Text('Запис на прийом'),
       ),
-      // Використовуємо Column, щоб розмістити віджети один під одним
-      body: Column(
+      // Використовуємо _isLoading для показу індикатора
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           // --- ВІДЖЕТ ПОШУКУ ---
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
-              controller: _searchController, // Прив'язуємо контролер
+              controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Пошук лікаря',
                 hintText: 'Введіть ім\'я або прізвище...',
-                prefixIcon: const Icon(Icons.search), // Іконка пошуку
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12.0),
                 ),
@@ -90,26 +104,36 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ),
 
           // --- СПИСОК ЛІКАРІВ ---
-          // Expanded, щоб список зайняв увесь простір, що залишився
           Expanded(
-            child: ListView.builder(
-              itemCount: _filteredDoctors.length, // Кількість елементів = довжина списку
+            child: _filteredDoctors.isEmpty
+                ? Center(
+              child: Text(
+                _allDoctors.isEmpty
+                    ? 'Список лікарів порожній'
+                    : 'Нічого не знайдено за запитом',
+                style: const TextStyle(
+                    fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            )
+                : ListView.builder(
+              itemCount: _filteredDoctors.length,
               itemBuilder: (context, index) {
-                final doctor = _filteredDoctors[index]; // Беремо конкретного лікаря
-
-                // Використовуємо ListTile для гарного відображення
+                final doctor = _filteredDoctors[index];
                 return ListTile(
-                  leading: CircleAvatar( // Аватарка-заглушка
-                    child: Text(doctor[0]), // Перша буква імені
+                  leading: CircleAvatar(
+                    child: Text(doctor.isNotEmpty &&
+                        doctor.length > 3
+                        ? doctor[3]
+                        : '?'),
                   ),
                   title: Text(doctor),
-                  subtitle: const Text('Терапевт'), // Можна додати спеціалізацію
-                  trailing: const Icon(Icons.keyboard_arrow_right),
+                  // TODO: Завантажувати спеціалізацію разом з іменем
+                  subtitle: const Text('Спеціалізація'),
+                  trailing:
+                  const Icon(Icons.keyboard_arrow_right),
                   onTap: () {
-                    // Обробка натискання на лікаря
                     print('Обрано лікаря: $doctor');
-                    // Тут можна, наприклад, перейти на екран деталей про лікаря
-                    // Navigator.push(...);
                   },
                 );
               },

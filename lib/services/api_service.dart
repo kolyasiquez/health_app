@@ -155,6 +155,13 @@ class ApiService {
         .get();
   }
 
+  Future<QuerySnapshot> getDoctorsList() {
+    return _firestore
+        .collection('doctors')
+        .where('role', isEqualTo: 'doctor')
+        .get();
+  }
+
   // Метод для Адміна: Схвалити лікаря
   Future<void> approveDoctor(String uid) async {
     final batch = _firestore.batch();
