@@ -50,7 +50,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               Icon(Icons.favorite, size: 100, color: primaryTeal),
               const SizedBox(height: 20),
               Text(
-                'Створити акаунт',
+                'Create account',
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -65,12 +65,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 segments: const [
                   ButtonSegment<UserRole>(
                     value: UserRole.patient,
-                    label: Text('Я - Пацієнт'),
+                    label: Text('I am a patient'),
                     icon: Icon(Icons.person_outline),
                   ),
                   ButtonSegment<UserRole>(
                     value: UserRole.doctor,
-                    label: Text('Я - Лікар'),
+                    label: Text('I am a doctor'),
                     icon: Icon(Icons.medical_services_outlined),
                   ),
                 ],
@@ -86,7 +86,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Ім\'я',
+                  labelText: 'Name',
                   prefixIcon: Icon(Icons.person),
                 ),
               ),
@@ -95,7 +95,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Електронна пошта',
+                  labelText: 'E-mail',
                   prefixIcon: Icon(Icons.email),
                 ),
               ),
@@ -104,7 +104,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Пароль',
+                  labelText: 'Password',
                   prefixIcon: Icon(Icons.lock),
                 ),
               ),
@@ -113,7 +113,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Підтвердіть пароль',
+                  labelText: 'Repeat the password',
                   prefixIcon: Icon(Icons.lock),
                 ),
               ),
@@ -128,7 +128,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     TextField(
                       controller: _bioController,
                       decoration: const InputDecoration(
-                        labelText: 'Про себе (кваліфікація, досвід)',
+                        labelText: 'About me (experience, certificate links etc.)',
                         prefixIcon: Icon(Icons.description_outlined),
                       ),
                       maxLines: 3,
@@ -149,13 +149,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ? const CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 )
-                    : const Text('Зареєструватися'),
+                    : const Text('Sign up'),
               ),
               const SizedBox(height: 10),
               TextButton(
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
                 child: const Text(
-                  'Вже маєте акаунт? Увійти',
+                  'Already have an account? Sign in',
                 ),
               ),
             ],

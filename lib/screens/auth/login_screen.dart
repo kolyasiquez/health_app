@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Icon(Icons.favorite, size: 100, color: primaryTeal),
               const SizedBox(height: 20),
               Text(
-                'Мобільний медичний помічник',
+                'Health-app',
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Електронна пошта',
+                  labelText: 'E-mail',
                   prefixIcon: Icon(Icons.email),
                 ),
               ),
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  labelText: 'Пароль',
+                  labelText: 'Password',
                   prefixIcon: Icon(Icons.lock),
                 ),
               ),
@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 )
-                    : const Text('Увійти'),
+                    : const Text('Sign in'),
               ),
               const SizedBox(height: 10),
               TextButton(
@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Navigator.pushNamed(context, '/registration');
                 },
                 child: const Text(
-                  'Зареєструватися',
+                  'Sign up',
                 ),
               ),
             ],

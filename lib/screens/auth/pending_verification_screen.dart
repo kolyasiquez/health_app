@@ -12,12 +12,12 @@ class PendingVerificationScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Очікування верифікації'),
+        title: const Text('Verification pending'),
         actions: [
           // Кнопка виходу
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Вийти',
+            tooltip: 'Exit',
             onPressed: () async {
               await AuthService().signOut();
               // Повертаємо користувача на екран входу
@@ -44,19 +44,19 @@ class PendingVerificationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
               Text(
-                'Ваша заявка на розгляді',
+                'Your application is under review',
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 15),
               Text(
-                'Адміністратор перевірить вашу інформацію. Зазвичай це займає до 24 годин.',
+                'An administrator will review your information. This usually takes up to 24 hours.',
                 style: theme.textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
               Text(
-                'Ви можете закрити додаток. Коли ви увійдете наступного разу, вас буде автоматично перенаправлено, щойно ваш акаунт схвалять.',
+                'You can safely close the app. Once your account is approved, you will be automatically redirected the next time you log in.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),

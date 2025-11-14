@@ -131,7 +131,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ваш профіль'),
+        title: const Text('Your profile'),
         // 🚀 Використовує AppBarTheme (Teal)
       ),
       body: SingleChildScrollView(
@@ -141,7 +141,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Ваша аватарка',
+                'Your avatar',
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -156,7 +156,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
                 ),
               const SizedBox(height: 50),
               Text(
-                'Тут будуть інші поля профілю (ім\'я, дата народження, тощо)...',
+                'etc........',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium, // Сірий
               ),
@@ -196,7 +196,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     return ElevatedButton.icon(
       onPressed: _isLoading ? null : _openAvatarAssetSelectionDialog,
       icon: const Icon(Icons.emoji_people),
-      label: const Text('Обрати стандартну аватарку'),
+      label: const Text('Choose an avatar'),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 15),
         minimumSize: const Size(double.infinity, 50),

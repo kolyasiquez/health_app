@@ -111,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Адмін-панель'),
+        title: const Text('Admin Dashboard'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -194,7 +194,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const Divider(height: 24.0),
                 Text(
-                    'Біографія (кваліфікація, досвід):',
+                    'About the doctor (experience, certificate links etc.):',
                     style: theme.textTheme.bodySmall
                 ),
                 const SizedBox(height: 4),
@@ -209,7 +209,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     TextButton(
                       onPressed: () => _showDenyDialog(doctor.id),
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Відхилити'),
+                      child: const Text('Deny'),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -219,7 +219,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         foregroundColor: Colors.white,
                         minimumSize: const Size(0, 36), // ВАЖЛИВО: Залишити це виправлення
                       ),
-                      child: const Text('Схвалити'),
+                      child: const Text('Accept'),
                     ),
                   ],
                 ),
