@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/screens/patient/health_profile_screen.dart';
+import 'package:health_app/screens/patient/book_appointment_screen.dart';
 // Припускаємо, що у вас є маршрути у main.dart
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -133,7 +134,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           icon: Icons.medical_services_outlined,
           color: Colors.green,
           onTap: () {
-            // TODO: Додати навігацію на екран списку лікарів / календаря
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BookAppointmentScreen(),
+              ),
+            );
           },
         ),
       ],
