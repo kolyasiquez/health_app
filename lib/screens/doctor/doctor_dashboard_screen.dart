@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:health_app/services/api_service.dart';
-import 'package:health_app/screens/doctor/doctor_profile_screen.dart'; // 🚀 Імпортуємо профіль лікаря
+import 'package:health_app/screens/doctor/doctor_profile_screen.dart';
+
+// 🚀 1. ДОДАНО НЕОБХІДНІ ІМПОРТИ
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
@@ -14,7 +20,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   String? _avatarUrl;
   String? _userName;
   bool _isLoading = true;
-  bool _isOnline = true; // 🚀 Стан для лікаря (онлайн/офлайн)
+  bool _isOnline = true;
 
   @override
   void initState() {
@@ -24,9 +30,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   /// Завантажує ім'я користувача та URL аватарки
   Future<void> _loadProfileData() async {
-    // Невелика затримка для демонстрації
+    // ... (ваш код без змін)
     await Future.delayed(const Duration(milliseconds: 100));
-    // Припускаємо, що getUserData() повертає дані залогіненого юзера (лікаря)
     final userData = await _apiService.getUserData();
     if (mounted) {
       setState(() {
@@ -39,6 +44,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (ваш build метод без змін) ...
     final theme = Theme.of(context);
     final accentOrange = theme.colorScheme.secondary;
 
@@ -46,7 +52,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: _buildHeader(context), // 🚀 Використовуємо той самий хедер
+        title: _buildHeader(context),
         toolbarHeight: 80,
         backgroundColor: theme.colorScheme.background,
         elevation: 0,
@@ -64,19 +70,12 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Привітання (Той самий стиль)
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
-
-                // 2. Статус лікаря (Новий віджет)
                 _buildStatusSwitch(theme),
                 const SizedBox(height: 30),
-
-                // 3. Головна дія (MVP-версія для лікаря)
-                _buildCalendarAction(context, theme),
+                _buildCalendarAction(context, theme), // <-- Ця кнопка тепер працює
                 const SizedBox(height: 30),
-
-                // 4. Пацієнти на сьогодні (MVP-версія для лікаря)
                 _buildTodaysSchedule(context, theme),
                 const SizedBox(height: 30),
               ],
@@ -87,9 +86,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  // --- Елементи MVP Лікаря ---
-
+  // --- Елементи MVP Лікаря (без змін) ---
   Widget _buildWelcomeMessage(ThemeData theme) {
+    // ... (ваш код без змін)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -101,7 +100,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           ),
         ),
         Text(
-          _userName ?? 'Лікар', // Використовуємо завантажене ім'я
+          _userName ?? 'Лікар',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: theme.colorScheme.onBackground,
             fontWeight: FontWeight.bold,
@@ -111,8 +110,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  /// 🚀 Новий віджет: Перемикач статусу
   Widget _buildStatusSwitch(ThemeData theme) {
+    // ... (ваш код без змін)
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -144,7 +143,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 onChanged: (value) {
                   setState(() {
                     _isOnline = value;
-                    // TODO: Додати виклик API для оновлення статусу
                   });
                 },
                 activeColor: Colors.green,
@@ -156,26 +154,27 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  /// 🚀 Головна дія лікаря
+  /// 🚀 Головна дія лікаря (ОНОВЛЕНО)
   Widget _buildCalendarAction(BuildContext context, ThemeData theme) {
-    return _buildMainActionButton( // 🚀 Використовуємо той самий стиль кнопки
+    return _buildMainActionButton(
       context: context,
       title: 'Керувати календарем',
       subtitle: 'Відкрити слоти та графік',
       icon: Icons.calendar_month_outlined,
       color: Colors.orange,
       onTap: () {
-        // TODO: Додати навігацію на екран керування календарем
+        // 🚀 2. ДОДАНО НАВІГАЦІЮ НА НОВИЙ ЕКРАН
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ManageCalendarScreen()),
+        );
       },
     );
   }
 
-  /// 🚀 Секція "Сьогодні на прийомі"
   Widget _buildTodaysSchedule(BuildContext context, ThemeData theme) {
-    // TODO: Тут має бути логіка завантаження списку пацієнтів на сьогодні
-    // Зараз тут мок-дані для прикладу.
+    // ... (ваш код без змін)
     bool hasAppointments = true;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,13 +207,13 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  /// 🚀 Картка прийому для лікаря
   Widget _buildAppointmentCard({
     required BuildContext context,
     required String patientName,
     required String time,
     required String reason,
   }) {
+    // ... (ваш код без змін)
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
@@ -260,9 +259,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             ),
             IconButton(
               icon: Icon(Icons.chevron_right, color: Colors.grey.shade400),
-              onPressed: () {
-                // TODO: Навігація на деталі прийому або профіль пацієнта
-              },
+              onPressed: () {},
             ),
           ],
         ),
@@ -270,8 +267,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  /// 🚀 Картка "Немає прийомів"
   Widget _buildNoAppointmentsCard(BuildContext context) {
+    // ... (ваш код без змін)
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -297,8 +294,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  // --- Віджет кнопки (той самий, що у пацієнта) ---
-
   Widget _buildMainActionButton({
     required BuildContext context,
     required String title,
@@ -307,6 +302,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    // ... (ваш код без змін)
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -352,28 +348,25 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  // --- AppBar та Навігація (як у пацієнта) ---
-
-  /// 🚀 Навігація до профілю лікаря
   Future<void> _navigateToProfile() async {
+    // ... (ваш код без змін)
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DoctorProfileScreen()),
     );
-    // Оновлюємо дані (наприклад, аватар) після повернення з екрану профілю
     _loadProfileData();
   }
 
-  /// 🚀 Заголовок (той самий, що у пацієнта)
   Widget _buildHeader(BuildContext context) {
+    // ... (ваш код без змін)
     final theme = Theme.of(context);
     final primaryTeal = theme.colorScheme.primary;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end, // Тільки аватар в AppBar
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         GestureDetector(
-          onTap: _navigateToProfile, // Веде на профіль лікаря
+          onTap: _navigateToProfile,
           child: CircleAvatar(
             radius: 25,
             backgroundColor: Colors.grey.shade200,
@@ -381,11 +374,240 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 ? AssetImage(_avatarUrl!)
                 : null,
             child: _avatarUrl == null || !_avatarUrl!.startsWith('assets/')
-                ? Icon(Icons.person_outline, color: primaryTeal, size: 30) // 🚀 Використовуємо іншу іконку для лікаря
+                ? Icon(Icons.person_outline, color: primaryTeal, size: 30)
                 : null,
           ),
         ),
       ],
+    );
+  }
+}
+
+
+// --- 🚀 3. ДОДАНО НОВИЙ ЕКРАН КЕРУВАННЯ КАЛЕНДАРЕМ ---
+
+class ManageCalendarScreen extends StatefulWidget {
+  const ManageCalendarScreen({super.key});
+
+  @override
+  State<ManageCalendarScreen> createState() => _ManageCalendarScreenState();
+}
+
+class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
+  // --- 1. Firebase та Стан ---
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  // Всі можливі слоти, які лікар може обрати
+  final List<String> _allTimeSlots = [
+    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+    '15:00', '15:30', '16:00', '16:30', '17:00',
+  ];
+
+  // Слоти, які лікар обрав для цього дня (використовуємо Set)
+  Set<String> _selectedSlots = {};
+
+  bool _isLoading = true; // Для завантаження/збереження
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+    // Завантажуємо вже збережені слоти для сьогодні
+    _loadSavedSlots(_selectedDay!);
+  }
+
+  /// 🚀 Завантажує збережені слоти, щоб лікар бачив свій графік
+  Future<void> _loadSavedSlots(DateTime day) async {
+    setState(() { _isLoading = true; });
+    try {
+      String doctorId = _auth.currentUser!.uid;
+      String docId = DateFormat('yyyy-MM-dd').format(day);
+
+      final doc = await _firestore
+          .collection('doctors')
+          .doc(doctorId)
+          .collection('availability')
+          .doc(docId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        setState(() {
+          _selectedSlots = Set<String>.from(doc.data()!['slots'] ?? []);
+        });
+      } else {
+        setState(() {
+          _selectedSlots = {}; // Немає збережених слотів
+        });
+      }
+    } catch (e) {
+      print("Помилка завантаження слотів: $e");
+      setState(() {
+        _selectedSlots = {};
+      });
+    } finally {
+      setState(() { _isLoading = false; });
+    }
+  }
+
+  /// 🚀 4. ФУНКЦІЯ ЗБЕРЕЖЕННЯ (яку ви питали)
+  Future<void> saveAvailability() async {
+    if (_selectedDay == null) return;
+
+    setState(() { _isLoading = true; });
+    try {
+      String doctorId = _auth.currentUser!.uid;
+      String docId = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+
+      await _firestore
+          .collection('doctors')
+          .doc(doctorId)
+          .collection('availability')
+          .doc(docId)
+          .set({
+        // Зберігаємо обрані слоти як список
+        'slots': _selectedSlots.toList()
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Графік на $docId оновлено!'), backgroundColor: Colors.green)
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Помилка збереження: $e'), backgroundColor: Colors.red)
+        );
+      }
+    } finally {
+      setState(() { _isLoading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Керування графіком'),
+        // Кнопка "Зберегти" в AppBar
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : TextButton(
+              onPressed: saveAvailability, // Викликаємо збереження
+              child: Text(
+                'Зберегти',
+                style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Календар ---
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TableCalendar(
+                  locale: 'en_US', // Ви можете змінити на 'uk_UA'
+                  firstDay: DateTime.now().subtract(const Duration(days: 30)),
+                  lastDay: DateTime.now().add(const Duration(days: 365)),
+                  focusedDay: _focusedDay,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                    // Завантажуємо слоти для нового обраного дня
+                    _loadSavedSlots(selectedDay);
+                  },
+                  calendarFormat: CalendarFormat.month,
+                  headerStyle: const HeaderStyle(
+                    titleCentered: true,
+                    formatButtonVisible: false,
+                  ),
+                  calendarStyle: CalendarStyle(
+                    todayDecoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      shape: BoxShape.circle,
+                    ),
+                    selectedDecoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // --- Вибір слотів ---
+            Text(
+              'Доступні години',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              _selectedDay != null
+                  ? DateFormat('d MMMM, yyyy').format(_selectedDay!)
+                  : '',
+              style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+
+            // --- Сітка з ChoiceChip ---
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: _allTimeSlots.map((slot) {
+                final isSelected = _selectedSlots.contains(slot);
+                return ChoiceChip(
+                  label: Text(slot),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    // Додаємо або видаляємо слот з набору
+                    setState(() {
+                      if (selected) {
+                        _selectedSlots.add(slot);
+                      } else {
+                        _selectedSlots.remove(slot);
+                      }
+                    });
+                  },
+                  selectedColor: theme.colorScheme.primary.withOpacity(0.8),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                  ),
+                  backgroundColor: Colors.grey[100],
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

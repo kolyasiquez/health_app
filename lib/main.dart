@@ -3,10 +3,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-// 🚀 1. ДОДАНО ІМПОРТИ ДЛЯ ЛОКАЛІЗАЦІЇ КАЛЕНДАРЯ
+// 🚀 1. ДОДАНО ІМПОРТИ ДЛЯ ЛОКАЛІЗАЦІЇ
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+// Імпорти ваших екранів
 import 'screens/auth/login_screen.dart';
 import 'screens/patient/patient_dashboard_screen.dart';
 import 'screens/doctor/doctor_dashboard_screen.dart';
@@ -17,8 +18,8 @@ import 'screens/auth/registration_screen.dart';
 import 'screens/auth/pending_verification_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 
-// 🚀 2. ДОДАНО ІМПОРТ ЕКРАНУ, ЯКИЙ МИ СТВОРИЛИ
-// (Перевірте, чи шлях 'screens/patient/book_appointment_screen.dart' правильний)
+// 🚀 2. ДОДАНО ІМПОРТ НОВОГО ЕКРАНУ
+// (Перевірте, чи правильний ваш шлях)
 import 'screens/patient/book_appointment_screen.dart';
 
 // import 'firebase_options.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
 class HealthApp extends StatelessWidget {
   const HealthApp({super.key});
 
+  // Ваші кольори (без змін)
   static const Color primaryTeal = Color(0xFF008080);
   static const Color accentOrange = Color(0xFFFF9800);
   static const Color lightBackground = Color(0xFFF0F2F5);
@@ -48,8 +50,9 @@ class HealthApp extends StatelessWidget {
     return MaterialApp(
       title: 'Health App',
       debugShowCheckedModeBanner: false,
+
+      // Ваша тема (без змін)
       theme: ThemeData(
-        // 🚀 ГОЛОВНА КОЛІРНА СХЕМА (без змін)
         brightness: Brightness.light,
         primaryColor: primaryTeal,
         colorScheme: const ColorScheme.light(
@@ -117,7 +120,6 @@ class HealthApp extends StatelessWidget {
       ),
 
       // 🚀 4. ДОДАНО НАЛАШТУВАННЯ ЛОКАЛІЗАЦІЇ
-      // Це потрібно, щоб TableCalendar знав, як показувати 'en_US'
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -125,7 +127,7 @@ class HealthApp extends StatelessWidget {
       ],
       supportedLocales: const [
         Locale('en', 'US'), // Англійська
-        Locale('uk', 'UA'), // (Можна залишити українську про всяк випадок)
+        Locale('uk', 'UA'), // Українська (можна залишити)
       ],
       locale: const Locale('en', 'US'), // Встановлюємо англійську
       // --- Кінець налаштувань локалізації ---
@@ -142,8 +144,7 @@ class HealthApp extends StatelessWidget {
         '/pending_verification': (context) => const PendingVerificationScreen(),
         '/admin_dashboard': (context) => const AdminDashboardScreen(),
 
-        // 🚀 5. ДОДАНО НОВИЙ МАРШРУТ (ЯКЩО ВІН ПОТРІБЕН)
-        // Тепер ви можете переходити на нього за назвою
+        // 🚀 5. ДОДАНО НОВИЙ МАРШРУТ
         '/book_appointment': (context) => const BookAppointmentScreen(),
       },
     );
