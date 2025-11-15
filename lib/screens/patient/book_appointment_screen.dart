@@ -4,14 +4,13 @@ import 'package:health_app/services/api_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🚀 ДОДАНО
 
 // --- КЛАС DOCTOR ---
-// Модель для представлення даних про лікаря
 class Doctor {
   final String id;
   final String name;
   final String specialization;
-  // Ви можете додати сюди 'bio', 'avatarUrl' тощо, якщо потрібно
 
   Doctor({
     required this.id,
@@ -19,12 +18,8 @@ class Doctor {
     required this.specialization,
   });
 
-  // Factory-конструктор для легкого створення об'єкта з DocumentSnapshot
   factory Doctor.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-
-    // Використовуємо 'bio' як 'specialization', якщо 'specialization' немає
-    // Ви можете змінити це на будь-яке поле, яке у вас є
     final spec = data['specialization'] as String? ?? data['bio'] as String? ?? 'No specialization provided';
 
     return Doctor(
@@ -61,12 +56,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _loadDoctorsFromServer();
   }
 
-  /// Завантажує список лікарів з вашого ApiService
+  /// Завантажує список лікарів
   Future<void> _loadDoctorsFromServer() async {
     try {
-      // Припускаємо, що _apiService.getDoctorsList() повертає QuerySnapshot
       final QuerySnapshot snapshot = await _apiService.getDoctorsList();
-
       final doctorsList =
       snapshot.docs.map((doc) => Doctor.fromSnapshot(doc)).toList();
 
@@ -79,15 +72,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       }
     } catch (e) {
       print('Error loading doctors: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) { setState(() { _isLoading = false; }); }
     }
   }
 
-  /// Фільтрує список лікарів на основі тексту пошуку
+  /// Фільтрує список лікарів
   void _filterDoctors() {
     final query = _searchController.text.toLowerCase();
     setState(() {
@@ -105,16 +94,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     super.dispose();
   }
 
-  /// Початкова функція, що викликає вспливаюче вікно
+  /// Викликає вспливаюче вікно
   void _showBookingSheet(BuildContext context, Doctor doctor) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder( // <-- Виправлено! (без 's')
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
-        // Передаємо обраного лікаря у віджет вікна
         return _BookingSheetContent(doctor: doctor);
       },
     );
@@ -199,22 +187,32 @@ class _BookingSheetContent extends StatefulWidget {
 }
 
 class _BookingSheetContentState extends State<_BookingSheetContent> {
-  // Стан для календаря
+  // Стан календаря
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Стан для завантаження слотів
+  // Стан слотів
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _areSlotsLoading = true;
   List<String> _availableSlots = [];
   String? _selectedSlot;
 
+  // 🚀 Стан бронювання
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isBooking = false;
+  final TextEditingController _commentController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // Завантажуємо слоти для сьогоднішнього дня при відкритті
     _loadAvailableSlots(_focusedDay);
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   /// Асинхронно завантажує вільні слоти з Firestore
@@ -227,7 +225,7 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
 
     try {
       String doctorId = widget.doctor.id;
-      String docId = DateFormat('yyyy-MM-dd').format(day); // '2025-11-20'
+      String docId = DateFormat('yyyy-MM-dd').format(day);
 
       final doc = await _firestore
           .collection('doctors')
@@ -240,12 +238,11 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
         final data = doc.data()!;
         _availableSlots = List<String>.from(data['slots'] ?? []);
       } else {
-        // Якщо документа немає = слотів немає
         _availableSlots = [];
       }
     } catch (e) {
       print('Error loading slots: $e');
-      _availableSlots = []; // На випадок помилки
+      _availableSlots = [];
     } finally {
       if (mounted) {
         setState(() {
@@ -255,7 +252,101 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
     }
   }
 
-  /// Будує UI для часових слотів (Завантажувач / Повідомлення / Чіпи)
+  /// 🚀 ГОЛОВНА ЛОГІКА: Бронювання прийому
+  Future<void> _bookAppointment() async {
+    if (_selectedDay == null || _selectedSlot == null) {
+      // ... (перевірка)
+      return;
+    }
+
+    setState(() { _isBooking = true; });
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      final String patientId = user.uid;
+      // TODO: Отримайте ім'я пацієнта з його профілю
+      final String patientName = user.displayName ?? user.email ?? 'Patient';
+
+      final String doctorId = widget.doctor.id;
+      final String docDateId = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+
+      final doctorSlotRef = _firestore
+          .collection('doctors')
+          .doc(doctorId)
+          .collection('availability')
+          .doc(docDateId);
+
+      final newAppointmentRef = _firestore.collection('appointments').doc();
+
+      final appointmentData = {
+        'doctorId': doctorId,
+        'doctorName': widget.doctor.name,
+        'patientId': patientId,
+        'patientName': patientName,
+        'date': docDateId,
+        'slot': _selectedSlot,
+        'comment': _commentController.text,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      // --- 🚀 Атомна Транзакція ---
+      await _firestore.runTransaction((transaction) async {
+        // 1. Читаємо поточні слоти
+        final slotDoc = await transaction.get(doctorSlotRef);
+
+        if (!slotDoc.exists) {
+          throw Exception("Doctor's schedule not found.");
+        }
+
+        List<String> currentSlots = List<String>.from(slotDoc.data()!['slots'] ?? []);
+
+        // 2. Перевіряємо, чи слот ще там
+        if (!currentSlots.contains(_selectedSlot!)) {
+          throw Exception("Slot just became unavailable. Please refresh.");
+        }
+
+        // 3. Видаляємо слот
+        currentSlots.remove(_selectedSlot!);
+
+        // 4. Оновлюємо графік лікаря
+        transaction.update(doctorSlotRef, {'slots': currentSlots});
+
+        // 5. Створюємо новий запис
+        transaction.set(newAppointmentRef, appointmentData);
+      });
+      // --- Кінець Транзакції ---
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment booked successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context); // Закриваємо вікно
+      }
+
+    } catch (e) {
+      print('Error booking appointment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to book: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isBooking = false; });
+      }
+    }
+  }
+
+  /// Будує UI для часових слотів
   Widget _buildTimeSlots() {
     if (_areSlotsLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -298,7 +389,6 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    // 90% висоти екрану
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.9,
       child: Padding(
@@ -320,52 +410,40 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- 1. Інформація про лікаря ---
+              // --- 1. Інфо про лікаря ---
               Text(
                 widget.doctor.name,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               Text(
                 widget.doctor.specialization,
-                maxLines: 2, // На випадок, якщо це 'bio'
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const Divider(height: 32),
-
               // --- 2. Календар ---
-              Text(
-                'Select a day',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('Select a day', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               TableCalendar(
                 locale: 'en_US',
-                firstDay: DateTime.now(), // Не можна обрати минулі дні
+                firstDay: DateTime.now(),
                 lastDay: DateTime.now().add(const Duration(days: 90)),
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 onDaySelected: (selectedDay, focusedDay) {
-                  // При виборі нового дня -> завантажуємо слоти для нього
                   setState(() {
                     _selectedDay = selectedDay;
                     _focusedDay = focusedDay;
                   });
                   _loadAvailableSlots(selectedDay);
                 },
-                // --- Обмеження: вимикаємо вихідні (Сб та Нд) ---
-                enabledDayPredicate: (day) {
-                  if (day.weekday == DateTime.saturday ||
-                      day.weekday == DateTime.sunday) {
-                    return false;
-                  }
-                  return true;
-                },
-                // --- Стилі ---
+                // enabledDayPredicate: (day) {
+                //   if (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday) {
+                //     return false;
+                //   }
+                //   return true;
+                // },
                 calendarFormat: CalendarFormat.month,
                 headerStyle: const HeaderStyle(
                   titleCentered: true,
@@ -384,18 +462,14 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- 3. Вибір часу (динамічний блок) ---
-              const Text(
-                'Select a time',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              // --- 3. Вибір часу ---
+              const Text('Select a time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              _buildTimeSlots(), // Викликаємо наш новий віджет
+              _buildTimeSlots(),
               const SizedBox(height: 24),
-
               // --- 4. Коментар ---
               TextField(
+                controller: _commentController, // 🚀 ПІДКЛЮЧЕНО
                 decoration: InputDecoration(
                   labelText: 'Comment (optional)',
                   hintText: 'E.g., "high blood pressure"',
@@ -406,32 +480,19 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
-
               // --- 5. Кнопка "Забронювати" ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    // Використовуємо колір з вашої теми (accentOrange)
                     backgroundColor: Theme.of(context).colorScheme.secondary,
                   ),
-                  onPressed: () {
-                    // TODO: Додати логіку бронювання
-                    if (_selectedDay == null || _selectedSlot == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please select a day and a time slot.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    print(
-                        'Booked appointment with ${widget.doctor.name} (ID: ${widget.doctor.id}) on $_selectedDay at $_selectedSlot');
-                    Navigator.pop(context); // Закриваємо вікно
-                  },
-                  child: const Text(
+                  onPressed: (_selectedSlot == null || _isBooking)
+                      ? null // Неактивна
+                      : _bookAppointment, // Активна
+                  child: _isBooking
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
                     'Book Appointment',
                     style: TextStyle(fontSize: 18),
                   ),
