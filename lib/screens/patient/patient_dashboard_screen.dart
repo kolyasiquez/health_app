@@ -78,6 +78,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
 
+                // 2. AI Асистент
+                _buildAIAssistant(context, theme),
+                const SizedBox(height: 8),
+
                 // 2. Головна кнопка дії (Запис до лікаря)
                 _buildBookAction(context, theme),
                 const SizedBox(height: 30),
@@ -116,6 +120,21 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildAIAssistant(BuildContext context, ThemeData theme) {
+    return _buildMainActionButton(
+      context: context,
+      title: 'AI Assistant',
+      subtitle: 'Ask an AI Assistant',
+      icon: Icons.smart_toy,
+      color: theme.colorScheme.primary, // Teal
+      onTap: () {
+        // Перехід на екран AI асистента
+        Navigator.pushNamed(context, '/ai_assistant');
+      },
+    );
+
   }
 
   /// Головна кнопка: Запис на прийом
