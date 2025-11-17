@@ -56,7 +56,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Асистент'),
+        title: const Text('AI Assistant'),
       ),
       body: Column(
         children: [
@@ -96,7 +96,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      hintText: 'Введіть ваше питання...',
+                      hintText: 'Enter your question...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     // НОВЕ: Блокуємо поле вводу під час завантаження

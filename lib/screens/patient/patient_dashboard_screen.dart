@@ -105,7 +105,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Вітаємо,',
+          'Hello,',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: theme.colorScheme.onBackground,
             fontWeight: FontWeight.w300,
@@ -141,8 +141,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   Widget _buildBookAction(BuildContext context, ThemeData theme) {
     return _buildMainActionButton(
       context: context,
-      title: 'Записатись на прийом',
-      subtitle: 'Знайти лікаря та обрати час',
+      title: 'Make an appointment',
+      subtitle: 'Find a doctor and book an appointment',
       icon: Icons.calendar_month_outlined,
       color: theme.colorScheme.primary, // Teal
       onTap: () {
@@ -162,7 +162,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Мої візити',
+          'My appointments',
           style: theme.textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
@@ -301,7 +301,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             Icon(Icons.calendar_today_outlined, color: Colors.grey.shade500),
             const SizedBox(width: 12),
             Text(
-              'У вас немає майбутніх візитів',
+              'You don\'t have any future appointments',
               style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
             ),
           ],

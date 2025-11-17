@@ -95,7 +95,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Вітаємо,',
+          'Hello,',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: theme.colorScheme.onBackground,
             fontWeight: FontWeight.w300,
@@ -158,8 +158,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     // ... (код без змін, веде на ManageCalendarScreen)
     return _buildMainActionButton(
       context: context,
-      title: 'Керувати календарем',
-      subtitle: 'Відкрити слоти та графік',
+      title: 'Manage your calendar',
+      subtitle: 'Check your schedule',
       icon: Icons.calendar_month_outlined,
       color: Colors.orange,
       onTap: () {
@@ -181,7 +181,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Майбутні прийоми', // 👈 Змінено заголовок
+          'Future appointments', // 👈 Змінено заголовок
           style: theme.textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
@@ -325,7 +325,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             Icon(Icons.check_circle_outline, color: Colors.green.shade500),
             const SizedBox(width: 12),
             Text(
-              'Майбутніх прийомів немає', // 👈 Змінено текст
+              'No future appointments', // 👈 Змінено текст
               style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
             ),
           ],
@@ -540,7 +540,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Графік на $docId оновлено!'), backgroundColor: Colors.green)
+            SnackBar(content: Text('$docId\'s schedule updated!'), backgroundColor: Colors.green)
         );
       }
     } catch (e) {
@@ -559,7 +559,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Керування графіком'),
+        title: Text('Manage your schedule'),
         actions: [
           // ... (кнопка "Зберегти" без змін)
           Padding(
@@ -572,7 +572,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                 : TextButton(
               onPressed: saveAvailability,
               child: Text(
-                'Зберегти',
+                'Save',
                 style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold
@@ -632,7 +632,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
 
             // --- Вибір слотів ---
             Text(
-              'Доступні години',
+              'Available hours',
               style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
