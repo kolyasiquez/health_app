@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// НОВЕ: Імпортуємо наш сервіс для роботи з API
+import 'package:health_app/openai_service.dart'; // <-- Замініть на ваш шлях
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -11,16 +13,43 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
 
-  void _sendMessage() {
+  // НОВЕ: Створюємо екземпляр нашого сервісу
+  final OpenAiService _apiService = OpenAiService();
+
+  // НОВЕ: Змінна для відстеження стану завантаження
+  bool _isLoading = false;
+
+  // НОВЕ: Метод тепер асинхронний (async)
+  void _sendMessage() async {
     if (_controller.text.isEmpty) return;
-    final message = _controller.text;
+
+    final messageText = _controller.text;
+
+    // НОВЕ: Використовуємо setState для оновлення UI
     setState(() {
-      _messages.add({'sender': 'user', 'message': message});
-      _controller.clear();
-      // Тут можна додати логіку для виклику AI API
-      // Приклад відповіді:
-      _messages.add({'sender': 'ai', 'message': 'Це автоматична відповідь. Будь ласка, зверніться до лікаря для точного діагнозу.'});
+      _messages.add({'sender': 'user', 'message': messageText});
+      _isLoading = true; // Починаємо завантаження
     });
+
+    _controller.clear(); // Очищуємо поле вводу
+
+    // НОВЕ: Викликаємо API та обробляємо відповідь
+    try {
+      final aiResponse = await _apiService.getCompletion(messageText);
+      setState(() {
+        _messages.add({'sender': 'ai', 'message': aiResponse});
+      });
+    } catch (e) {
+      // Обробляємо можливу помилку
+      setState(() {
+        _messages.add({'sender': 'ai', 'message': 'Виникла помилка: ${e.toString()}'});
+      });
+    } finally {
+      // НОВЕ: Завершуємо завантаження у будь-якому випадку
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -33,7 +62,6 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              reverse: false,
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
@@ -52,6 +80,14 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               },
             ),
           ),
+
+          // НОВЕ: Показуємо індикатор завантаження, якщо _isLoading true
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            ),
+
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -63,13 +99,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       hintText: 'Введіть ваше питання...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
+                    // НОВЕ: Блокуємо поле вводу під час завантаження
+                    readOnly: _isLoading,
+                    onSubmitted: _isLoading ? null : (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
+                  // НОВЕ: Блокуємо кнопку під час завантаження
+                  onPressed: _isLoading ? null : _sendMessage,
                   color: Colors.blueAccent,
                 ),
               ],

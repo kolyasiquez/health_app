@@ -2,6 +2,7 @@
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // 🚀 1. ДОДАНО ІМПОРТИ ДЛЯ ЛОКАЛІЗАЦІЇ
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -27,6 +28,8 @@ import 'screens/patient/book_appointment_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  await dotenv.load(fileName: ".env");
 
   // 🚀 3. ДОДАНО ІНІЦІАЛІЗАЦІЮ ЛОКАЛІ (ДЛЯ АНГЛІЙСЬКОЇ)
   // Це виправляє помилку LocaleDataException

@@ -1,3 +1,7 @@
+# Файли середовища - НІКОЛИ не комітити!
+.env
+*.env
+
 # Miscellaneous
 *.class
 *.log
