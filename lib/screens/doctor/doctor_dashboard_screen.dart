@@ -73,8 +73,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               children: [
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
-                _buildStatusSwitch(theme),
-                const SizedBox(height: 30),
                 _buildCalendarAction(context, theme),
                 const SizedBox(height: 30),
                 // 🚀 1. ВИКЛИКАЄМО ОНОВЛЕНИЙ ВІДЖЕТ
@@ -109,48 +107,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatusSwitch(ThemeData theme) {
-    // ... (код без змін)
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _isOnline ? Icons.check_circle_outline : Icons.pause_circle_outline,
-                  color: _isOnline ? Colors.green : Colors.grey,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Ваш статус',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            Transform.scale(
-              scale: 0.9,
-              child: Switch(
-                value: _isOnline,
-                onChanged: (value) {
-                  setState(() { _isOnline = value; });
-                },
-                activeColor: Colors.green,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
