@@ -9,10 +9,10 @@ class DoctorProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Профіль Лікаря'),
+        title: const Text('Doctor\'s profile'),
       ),
       body: const Center(
-        child: Text('Тут буде екран профілю лікаря'),
+        child: Text('etc...'),
       ),
     );
   }

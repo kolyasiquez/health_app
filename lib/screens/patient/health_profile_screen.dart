@@ -55,7 +55,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Оберіть стандартну аватарку', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Choose profile picture', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               GridView.builder(
                 shrinkWrap: true,
@@ -108,13 +108,13 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Аватарку успішно оновлено!')),
+            const SnackBar(content: Text('Profile picture has been successfully updated!')),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Помилка збереження: $e')),
+            SnackBar(content: Text('Error occurred while trying to update the profile\'s picture: $e')),
           );
         }
       } finally {
