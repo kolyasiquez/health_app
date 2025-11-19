@@ -554,7 +554,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                 padding: const EdgeInsets.all(8.0),
                 child: TableCalendar(
                   locale: 'en_US',
-                  firstDay: DateTime.now().subtract(const Duration(days: 30)),
+                  firstDay: DateTime.now(),
                   lastDay: DateTime.now().add(const Duration(days: 365)),
                   focusedDay: _focusedDay,
                   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
