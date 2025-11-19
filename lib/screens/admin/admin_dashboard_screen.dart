@@ -37,10 +37,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      log('Помилка завантаження лікарів: $e');
+      log('Error occurred while trying to load a list of pending doctors: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Помилка завантаження даних: $e')),
+          SnackBar(content: Text('Error occurred while trying to load the data: $e')),
         );
       }
       setState(() {
@@ -59,16 +59,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Лікаря схвалено.'),
+            content: Text('Doctor has been approved!'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      log('Помилка схвалення: $e');
+      log('Error occurred while approving the registration: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Помилка схвалення: $e')),
+          SnackBar(content: Text('Error occurred while approving the registration: $e')),
         );
       }
     }
@@ -88,16 +88,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Лікаря відхилено. Дані профілю видалено.'),
+            content: Text('Doctor data deleted'),
             backgroundColor: Colors.red, // Повертаємо червоний колір
           ),
         );
       }
     } catch (e) {
-      log('Помилка відхилення та видалення: $e');
+      log('Error occurred while trying to cancel registration: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Помилка видалення даних: $e')),
+          SnackBar(content: Text('Error occurred while trying to delete data: $e')),
         );
       }
     }
@@ -151,7 +151,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_pendingDoctors.isEmpty) {
       return Center(
         child: Text(
-          'Немає заявок на верифікацію.',
+          'No pending registrations',
           style: theme.textTheme.titleMedium,
         ),
       );
@@ -185,8 +185,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(data['name'] ?? 'Без імені', style: theme.textTheme.titleMedium),
-                          Text(data['email'] ?? 'Без пошти', style: theme.textTheme.bodyMedium),
+                          Text(data['name'] ?? 'No name', style: theme.textTheme.titleMedium),
+                          Text(data['email'] ?? 'No email', style: theme.textTheme.bodyMedium),
                         ],
                       ),
                     ),
@@ -199,7 +199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  data['bio'] ?? 'Не вказано',
+                  data['bio'] ?? 'Not provided',
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 16),
@@ -237,18 +237,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Підтвердити видалення'), // Оновлено
+        title: const Text('Confirm deletion'), // Оновлено
         content: const Text(
-          'Ви впевнені, що хочете відхилити та видалити дані цього лікаря з бази?\n\n(ВАЖЛИВО: Після цього вам потрібно буде вручну видалити його акаунт з Firebase Authentication.)', // Оновлено
+          'Are you sure that you want to cancel registration of this doctor?\n\n(IMPORTANT: After this you will need to delete his account in Firebase Authentication.)', // Оновлено
         ),
         actions: [
           TextButton(
-            child: const Text('Скасувати'),
+            child: const Text('Cancel'),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red), // Повертаємо червоний
-            child: const Text('Видалити дані'), // Оновлено
+            child: const Text('Delete data'), // Оновлено
             onPressed: () {
               Navigator.of(ctx).pop();
               _denyDoctor(uid); // Викликаємо оновлений метод
