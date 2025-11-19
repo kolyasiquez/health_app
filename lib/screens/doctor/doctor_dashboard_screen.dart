@@ -38,7 +38,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     if (mounted) {
       setState(() {
         _avatarUrl = userData?['avatarUrl'];
-        _userName = userData?['name'] ?? 'Лікар';
+        _userName = userData?['name'] ?? 'Doctor';
         _isLoading = false;
       });
     }
@@ -100,7 +100,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           ),
         ),
         Text(
-          _userName ?? 'Лікар',
+          _userName ?? 'Doctor',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: theme.colorScheme.onBackground,
             fontWeight: FontWeight.bold,
@@ -159,7 +159,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             }
             if (snapshot.hasError) {
               // ⚠️ Помилка (ймовірно, просить індекс)
-              return Text('Помилка завантаження: ${snapshot.error}');
+              return Text('Error occurred while trying to load the data: ${snapshot.error}');
             }
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return _buildNoAppointmentsCard(context);
@@ -397,9 +397,10 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
   DateTime? _selectedDay;
 
   final List<String> _allTimeSlots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '08:00','09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
     '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30', '17:00',
+    '15:00', '15:30', '16:00', '16:30', '17:00','17:30','18:00','18:30',
+    '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
   ];
 
   // 🚀 ОНОВЛЕНО: Два окремих списки
@@ -503,7 +504,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
       if (mounted) {
         setState(() { _isLoading = false; });
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Помилка збереження: $e'), backgroundColor: Colors.red)
+            SnackBar(content: Text('Error occurred while trying to update the schedule: $e'), backgroundColor: Colors.red)
         );
       }
     }
@@ -606,29 +607,66 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
               spacing: 8.0,
               runSpacing: 8.0,
               children: _allTimeSlots.map((slot) {
-
                 final bool isBooked = _bookedSlots.contains(slot);
                 final bool isAvailable = _availableSlots.contains(slot);
+
+                // --- 🆕 ЛОГІКА ПЕРЕВІРКИ ЧАСУ ---
+                bool isPastTime = false;
+                final now = DateTime.now();
+
+                // Перевіряємо, чи обраний день - це СЬОГОДНІ
+                if (_selectedDay != null && isSameDay(_selectedDay, now)) {
+                  // Парсимо слот (наприклад "14:30")
+                  final parts = slot.split(':');
+                  final hour = int.parse(parts[0]);
+                  final minute = int.parse(parts[1]);
+
+                  // Створюємо об'єкт часу для цього слота сьогодні
+                  final slotDateTime = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    hour,
+                    minute,
+                  );
+
+                  // Якщо час слота менший за поточний час -> це минуле
+                  if (slotDateTime.isBefore(now)) {
+                    isPastTime = true;
+                  }
+                }
+                // --------------------------------
 
                 // --- 1. Слот вже ЗАБРОНЬОВАНИЙ ---
                 if (isBooked) {
                   return Chip(
                     label: Text(slot),
-                    backgroundColor: Colors.grey.shade400, // Сірий фон
-                    avatar: Icon(Icons.lock_outline, size: 16, color: Colors.grey.shade800), // Іконка замка
+                    backgroundColor: Colors.grey.shade400,
+                    avatar: Icon(Icons.lock_outline, size: 16, color: Colors.grey.shade800),
                     labelStyle: TextStyle(
                       color: Colors.grey.shade800,
-                      decoration: TextDecoration.lineThrough, // Перекреслений
+                      decoration: TextDecoration.lineThrough,
                     ),
                   );
                 }
 
-                // --- 2. Слот ВІЛЬНИЙ (або доступний, або ні) ---
+                // --- 2. Слот МИНУВ (НОВА УМОВА) ---
+                if (isPastTime) {
+                  return Chip(
+                    label: Text(slot),
+                    backgroundColor: Colors.grey.shade200, // Світліший сірий
+                    avatar: Icon(Icons.history, size: 16, color: Colors.grey.shade500), // Іконка годинника
+                    labelStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                    ),
+                  );
+                }
+
+                // --- 3. Слот ВІЛЬНИЙ (можна редагувати) ---
                 return ChoiceChip(
                   label: Text(slot),
-                  selected: isAvailable, // Обраний, якщо в _availableSlots
+                  selected: isAvailable,
                   onSelected: (bool selected) {
-                    // Лікар може обирати/знімати лише вільні слоти
                     setState(() {
                       if (selected) {
                         _availableSlots.add(slot);

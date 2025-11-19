@@ -237,6 +237,7 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         _availableSlots = List<String>.from(data['slots'] ?? []);
+        _availableSlots.sort();
       } else {
         _availableSlots = [];
       }
@@ -463,7 +464,7 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
               ),
               const SizedBox(height: 24),
               // --- 3. Вибір часу ---
-              const Text('Select a time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Select time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               _buildTimeSlots(),
               const SizedBox(height: 24),
