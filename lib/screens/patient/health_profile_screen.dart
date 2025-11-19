@@ -8,10 +8,10 @@ import 'package:health_app/services/api_service.dart';
 const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
 // Приклад kDefaultAvatarPaths, якщо він не визначений:
 const List<String> kDefaultAvatarPaths = [
-  'assets/avatars/avatar1.png',
-  'assets/avatars/avatar2.png',
-  'assets/avatars/avatar3.png',
-  'assets/avatars/avatar4.png',
+  'assets/avatars/avatar_1.png',
+  'assets/avatars/avatar_2.png',
+  'assets/avatars/avatar_3.png',
+  'assets/avatars/avatar_4.png',
 ];
 
 class HealthProfileScreen extends StatefulWidget {
