@@ -3,7 +3,8 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:health_app/screens/auth/auth_service.dart';
-import 'package:health_app/services/api_service.dart';
+import 'package:health_app/services/api_service.dart'; // Для UserRole
+import 'package:health_app/constants/constants.dart'; // 🚀 ІМПОРТУЄМО СПИСОК
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -19,9 +20,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _bioController = TextEditingController(); // 🚀 ДЛЯ БІОГРАФІЇ ЛІКАРЯ
+  final _bioController = TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
+  String? _selectedSpecialization; // Зберігаємо вибір тут
+
   bool _isLoading = false;
 
   @override
@@ -56,6 +59,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
               const SizedBox(height: 40),
 
+              // --- Вибір Ролі ---
               SegmentedButton<UserRole>(
                 style: SegmentedButton.styleFrom(
                   selectedBackgroundColor: primaryTeal.withOpacity(0.1),
@@ -65,12 +69,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 segments: const [
                   ButtonSegment<UserRole>(
                     value: UserRole.patient,
-                    label: Text('I am a patient'),
+                    label: Text('Patient'),
                     icon: Icon(Icons.person_outline),
                   ),
                   ButtonSegment<UserRole>(
                     value: UserRole.doctor,
-                    label: Text('I am a doctor'),
+                    label: Text('Doctor'),
                     icon: Icon(Icons.medical_services_outlined),
                   ),
                 ],
@@ -83,80 +87,84 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
 
               const SizedBox(height: 30),
+
+              // --- Стандартні поля ---
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  prefixIcon: Icon(Icons.person),
-                ),
+                decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person)),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'E-mail',
-                  prefixIcon: Icon(Icons.email),
-                ),
+                decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.email)),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock),
-                ),
+                decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock)),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Repeat the password',
-                  prefixIcon: Icon(Icons.lock),
-                ),
+                decoration: const InputDecoration(labelText: 'Repeat Password', prefixIcon: Icon(Icons.lock)),
               ),
 
-              // 🚀🚀🚀 ОНОВЛЕНІ ПОЛЯ ДЛЯ ЛІКАРЯ (ТІЛЬКИ ТЕКСТ) 🚀🚀🚀
+              // --- БЛОК ДЛЯ ЛІКАРЯ (З'являється при виборі ролі) ---
               AnimatedCrossFade(
                 duration: const Duration(milliseconds: 300),
                 firstChild: Column(
                   children: [
                     const SizedBox(height: 20),
-                    // Поле для Біографії
+
+                    // 🚀 Випадаючий список (бере дані з constants.dart)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Specialization',
+                        prefixIcon: Icon(Icons.work_outline),
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedSpecialization,
+                      items: kSpecializations.map((String spec) {
+                        return DropdownMenuItem(value: spec, child: Text(spec));
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setState(() { _selectedSpecialization = newValue; });
+                      },
+                    ),
+
+                    const SizedBox(height: 15),
+
                     TextField(
                       controller: _bioController,
                       decoration: const InputDecoration(
-                        labelText: 'About me (experience, certificate links etc.)',
+                        labelText: 'About me (experience, etc.)',
                         prefixIcon: Icon(Icons.description_outlined),
                       ),
                       maxLines: 3,
                     ),
                   ],
                 ),
-                secondChild: Container(), // Порожній контейнер
+                secondChild: Container(),
                 crossFadeState: _selectedRole == UserRole.doctor
                     ? CrossFadeState.showFirst
                     : CrossFadeState.showSecond,
               ),
-              // 🚀🚀🚀 КІНЕЦЬ БЛОКУ ДЛЯ ЛІКАРЯ 🚀🚀🚀
 
               const SizedBox(height: 30),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _signup,
                 child: _isLoading
-                    ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                )
+                    ? const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white))
                     : const Text('Sign up'),
               ),
               const SizedBox(height: 10),
               TextButton(
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
-                child: const Text(
-                  'Already have an account? Sign in',
-                ),
+                child: const Text('Already have an account? Sign in'),
               ),
             ],
           ),
@@ -165,28 +173,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
-  // 🚀🚀🚀 СПРОЩЕНА ЛОГІКА РЕЄСТРАЦІЇ 🚀🚀🚀
   _signup() async {
-    // 1. ПЕРЕВІРКА ПАРОЛІВ
     if (_passwordController.text != _confirmPasswordController.text) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Помилка: Паролі не співпадають.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
       return;
     }
 
-    // 2. ДОДАТКОВА ПЕРЕВІРКА ДЛЯ ЛІКАРЯ
+    // Валідація лікаря
     if (_selectedRole == UserRole.doctor) {
-      if (_bioController.text.trim().isEmpty) { // 🚀 Перевіряємо тільки 'bio'
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Будь ласка, заповніть інформацію про себе.')),
-          );
-        }
+      if (_selectedSpecialization == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a specialization.')));
+        return;
+      }
+      if (_bioController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in info about yourself.')));
         return;
       }
     }
@@ -194,49 +194,30 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() { _isLoading = true; });
 
     try {
-      // 3. СТВОРЮЄМО КОРИСТУВАЧА. 'bio' передається одразу.
-      final user = await _auth.createUserWithEmailAndPassword(
+      await _auth.createUserWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text,
         _nameController.text.trim(),
         _selectedRole,
-        // 🚀 Передаємо 'bio' тільки якщо це лікар
-        bio: _selectedRole == UserRole.doctor
-            ? _bioController.text.trim()
-            : null,
+        // Передаємо дані далі
+        bio: _selectedRole == UserRole.doctor ? _bioController.text.trim() : null,
+        specialization: _selectedRole == UserRole.doctor ? _selectedSpecialization : null,
       );
 
-      if (user == null) {
-        throw Exception("Не вдалося створити користувача.");
-      }
-
-      // 4. ОБРОБКА ЗАЛЕЖНО ВІД РОЛІ
-      if (_selectedRole == UserRole.doctor) {
-        // 4а. ЛІКАР: Все готово, перекидаємо на верифікацію
-        log("Doctor created, pending verification.");
-        if (mounted) {
+      if (mounted) {
+        if (_selectedRole == UserRole.doctor) {
           Navigator.pushReplacementNamed(context, '/pending_verification');
-        }
-
-      } else {
-        // 4б. ПАЦІЄНТ: Все готово, перекидаємо на дашборд
-        log("Patient created successfully.");
-        if (mounted) {
+        } else {
           Navigator.pushReplacementNamed(context, '/patient_dashboard');
         }
       }
-
     } catch (e) {
-      log("Registration failed: $e");
+      log("Reg error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Помилка реєстрації: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Registration Error: $e')));
       }
     } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
-      }
+      if (mounted) setState(() { _isLoading = false; });
     }
   }
 }
