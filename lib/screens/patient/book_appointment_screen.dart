@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-// Переконайтеся, що цей шлях до вашого ApiService правильний
 import 'package:health_app/services/api_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 🚀 ДОДАНО
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:health_app/constants/constants.dart'; // 🚀 1. ІМПОРТУЄМО СПИСОК
 
 // --- КЛАС DOCTOR ---
 class Doctor {
@@ -20,7 +20,10 @@ class Doctor {
 
   factory Doctor.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    final spec = data['specialization'] as String? ?? data['bio'] as String? ?? 'No specialization provided';
+    // 🚀 Беремо поле 'specialization', якщо немає - беремо біо або дефолт
+    final spec = data['specialization'] as String? ??
+        data['bio'] as String? ??
+        'General Practitioner';
 
     return Doctor(
       id: doc.id,
@@ -29,8 +32,6 @@ class Doctor {
     );
   }
 }
-// --- КІНЕЦЬ КЛАСУ DOCTOR ---
-
 
 // --- 1. ГОЛОВНИЙ ВІДЖЕТ ЕКРАНУ ---
 class BookAppointmentScreen extends StatefulWidget {
@@ -48,6 +49,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   List<Doctor> _allDoctors = [];
   List<Doctor> _filteredDoctors = [];
 
+  // 🚀 2. ЗМІННА ДЛЯ ЗБЕРЕЖЕННЯ ОБРАНОЇ СПЕЦІАЛІЗАЦІЇ
+  String? _selectedSpecialization;
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +60,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _loadDoctorsFromServer();
   }
 
-  /// Завантажує список лікарів
   Future<void> _loadDoctorsFromServer() async {
     try {
       final QuerySnapshot snapshot = await _apiService.getDoctorsList();
@@ -76,13 +79,22 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     }
   }
 
-  /// Фільтрує список лікарів
+  // 🚀 3. ОНОВЛЕНА ЛОГІКА ФІЛЬТРАЦІЇ
   void _filterDoctors() {
     final query = _searchController.text.toLowerCase();
+
     setState(() {
       _filteredDoctors = _allDoctors.where((doctor) {
-        final doctorLower = doctor.name.toLowerCase();
-        return doctorLower.contains(query);
+        // 1. Перевірка імені
+        final nameMatches = doctor.name.toLowerCase().contains(query);
+
+        // 2. Перевірка спеціалізації
+        // Якщо фільтр не обраний (null) - показуємо всіх.
+        // Якщо обраний - показуємо тільки тих, у кого співпадає.
+        final specMatches = _selectedSpecialization == null ||
+            doctor.specialization == _selectedSpecialization;
+
+        return nameMatches && specMatches;
       }).toList();
     });
   }
@@ -94,7 +106,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     super.dispose();
   }
 
-  /// Викликає вспливаюче вікно
   void _showBookingSheet(BuildContext context, Doctor doctor) {
     showModalBottomSheet(
       context: context,
@@ -110,6 +121,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Book an Appointment'),
@@ -118,54 +131,134 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // --- ВІДЖЕТ ПОШУКУ ---
+          // --- БЛОК ПОШУКУ ТА ФІЛЬТРІВ ---
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search doctor',
-                hintText: 'Enter name or surname...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+            child: Column(
+              children: [
+                // 1. Пошук за іменем
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Search doctor',
+                    hintText: 'Enter name...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+
+                // 🚀 4. ВИПАДАЮЧИЙ СПИСОК (ФІЛЬТР)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedSpecialization,
+                      hint: Row(
+                        children: const [
+                          Icon(Icons.filter_list, color: Colors.grey),
+                          SizedBox(width: 8),
+                          Text("Filter by Specialization"),
+                        ],
+                      ),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      elevation: 16,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedSpecialization = newValue;
+                          _filterDoctors(); // Викликаємо фільтрацію при зміні
+                        });
+                      },
+                      items: [
+                        // Опція "Всі лікарі" (скидання фільтру)
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text("All Specializations", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        // Список з constants.dart
+                        ...kSpecializations.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+
           // --- СПИСОК ЛІКАРІВ ---
           Expanded(
             child: _filteredDoctors.isEmpty
                 ? Center(
-              child: Text(
-                _allDoctors.isEmpty
-                    ? 'Doctor list is empty'
-                    : 'Nothing found for your query',
-                style: const TextStyle(
-                    fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.person_search, size: 60, color: Colors.grey),
+                  const SizedBox(height: 10),
+                  Text(
+                    _allDoctors.isEmpty
+                        ? 'No doctors available yet.'
+                        : 'No doctors found matching criteria.',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             )
                 : ListView.builder(
               itemCount: _filteredDoctors.length,
               itemBuilder: (context, index) {
                 final doctor = _filteredDoctors[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    child: Text(doctor.name.isNotEmpty
-                        ? doctor.name[0].toUpperCase()
-                        : '?'),
+                return Card( // Трохи покращив вигляд, обгорнувши в Card
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: CircleAvatar(
+                      radius: 25,
+                      backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                      child: Text(
+                        doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : '?',
+                        style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20
+                        ),
+                      ),
+                    ),
+                    title: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        doctor.specialization,
+                        style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    trailing: Icon(Icons.calendar_today, color: theme.colorScheme.secondary),
+                    onTap: () {
+                      _showBookingSheet(context, doctor);
+                    },
                   ),
-                  title: Text(doctor.name),
-                  subtitle: Text(
-                    doctor.specialization,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: const Icon(Icons.keyboard_arrow_right),
-                  onTap: () {
-                    _showBookingSheet(context, doctor);
-                  },
                 );
               },
             ),
@@ -176,8 +269,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 }
 
-
-// --- 2. ВІДЖЕТ ДЛЯ ВМІСТУ ВСІЛИВАЮЧОГО ВІКНА ---
+// ... КЛАС _BookingSheetContent ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН ...
 class _BookingSheetContent extends StatefulWidget {
   final Doctor doctor;
   const _BookingSheetContent({required this.doctor});
@@ -187,6 +279,10 @@ class _BookingSheetContent extends StatefulWidget {
 }
 
 class _BookingSheetContentState extends State<_BookingSheetContent> {
+  // Тут весь код модального вікна календаря, який ви скидали раніше.
+  // Він не змінюється, тому я його не дублюю, щоб не робити повідомлення занадто довгим.
+  // Просто вставте сюди другу половину вашого файлу (class _BookingSheetContentState ...)
+
   // Стан календаря
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
