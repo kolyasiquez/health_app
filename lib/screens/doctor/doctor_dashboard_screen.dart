@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:health_app/services/api_service.dart';
-import 'package:health_app/screens/doctor/doctor_profile_screen.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import 'package:health_app/services/api_service.dart';
+import 'package:health_app/screens/doctor/doctor_profile_screen.dart';
+
+// 🚀 ВАЖЛИВО: Імпорт нового віджета деталей
+import 'package:health_app/widgets/appointment_details_sheet.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
@@ -16,14 +19,12 @@ class DoctorDashboardScreen extends StatefulWidget {
 
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   final _apiService = ApiService();
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String? _avatarUrl;
   String? _userName;
   bool _isLoading = true;
-  bool _isOnline = true;
 
   @override
   void initState() {
@@ -32,7 +33,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Future<void> _loadProfileData() async {
-    // ... (код завантаження профілю без змін)
     await Future.delayed(const Duration(milliseconds: 100));
     final userData = await _apiService.getUserData();
     if (mounted) {
@@ -75,7 +75,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 const SizedBox(height: 24),
                 _buildCalendarAction(context, theme),
                 const SizedBox(height: 30),
-                // 🚀 1. ВИКЛИКАЄМО ОНОВЛЕНИЙ ВІДЖЕТ
                 _buildUpcomingAppointments(context, theme),
                 const SizedBox(height: 30),
               ],
@@ -88,7 +87,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
   // --- Елементи ---
   Widget _buildWelcomeMessage(ThemeData theme) {
-    // ... (код без змін)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -111,7 +109,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildCalendarAction(BuildContext context, ThemeData theme) {
-    // ... (код без змін, веде на ManageCalendarScreen)
     return _buildMainActionButton(
       context: context,
       title: 'Manage your calendar',
@@ -127,8 +124,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  /// 🚀 2. ВІДЖЕТ ОНОВЛЕНО (був _buildTodaysSchedule)
-  /// Тепер показує всі майбутні прийоми
   Widget _buildUpcomingAppointments(BuildContext context, ThemeData theme) {
     final String currentUserId = _auth.currentUser!.uid;
     final String todayDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -137,9 +132,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Future appointments', // 👈 Змінено заголовок
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+          'Future appointments',
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
 
@@ -147,37 +141,50 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           stream: _firestore
               .collection('appointments')
               .where('doctorId', isEqualTo: currentUserId)
-          // 👈 ЗМІНЕНО ЗАПИТ: 'isGreaterThanOrEqualTo'
               .where('date', isGreaterThanOrEqualTo: todayDate)
-              .orderBy('date') // 👈 Додано сортування по даті
+              .orderBy('date')
               .orderBy('slot')
               .snapshots(),
           builder: (context, snapshot) {
-            // ... (обробка помилок та завантаження без змін)
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              // ⚠️ Помилка (ймовірно, просить індекс)
-              return Text('Error occurred while trying to load the data: ${snapshot.error}');
             }
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return _buildNoAppointmentsCard(context);
             }
 
-            // Будуємо список
             return Column(
               children: snapshot.data!.docs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
+                final String appointmentId = doc.id;
+                // Беремо ID пацієнта для завантаження даних
+                final String patientId = data['patientId'] ?? '';
+
+                // 🚀 ОБГОРТАЄМО В GESTURE DETECTOR ДЛЯ ВІДКРИТТЯ ДЕТАЛЕЙ
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
-                  child: _buildAppointmentCard(
-                    context: context,
-                    patientName: data['patientName'] ?? 'Patient',
-                    time: data['slot'] ?? '??:??',
-                    // 🚀 Додаємо відображення дати у картці
-                    date: data['date'] ?? '??-??',
-                    reason: data['comment'] ?? 'No comment',
+                  child: GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (context) => AppointmentDetailsSheet(
+                          appointmentId: appointmentId,
+                          appointmentData: data,
+                          isDoctor: true, // 👈 Лікар може редагувати результати
+                        ),
+                      );
+                    },
+                    child: _buildAppointmentCard(
+                      context: context,
+                      patientId: patientId, // Передаємо ID, щоб картка сама завантажила фото
+                      time: data['slot'] ?? '??:??',
+                      date: data['date'],
+                      reason: data['comment'] ?? 'No comment',
+                    ),
                   ),
                 );
               }).toList(),
@@ -188,83 +195,141 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
+  // Картка з завантаженням даних пацієнта (Fix для червоного екрану)
   Widget _buildAppointmentCard({
     required BuildContext context,
-    required String patientName,
+    required String patientId,
     required String time,
     required String reason,
-    String? date, // 🚀 Додано поле дати
+    String? date,
   }) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
-    // 🚀 Форматуємо дату, якщо вона є
-    String displayTime = time;
+    String datePart = '';
     if (date != null) {
       try {
         final d = DateFormat('yyyy-MM-dd').parse(date);
-        // Показуємо дату, якщо це НЕ сьогодні
-        if (!isSameDay(d, DateTime.now())) {
-          displayTime = '${DateFormat('d MMM').format(d)}, $time';
+        if (d.year == DateTime.now().year && d.month == DateTime.now().month && d.day == DateTime.now().day) {
+          datePart = 'Today';
+        } else {
+          datePart = DateFormat('d MMM').format(d);
         }
-      } catch (e) { /* ігноруємо */ }
+      } catch (e) { datePart = date; }
     }
 
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(patientId).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(child: SizedBox(height: 80, child: Center(child: CircularProgressIndicator())));
+        }
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                displayTime, // 👈 Відображаємо час (або час + дату)
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
+        Map<String, dynamic>? userData;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          userData = snapshot.data!.data() as Map<String, dynamic>;
+        }
+
+        final String name = userData?['name'] ?? 'Unknown Patient';
+        final String email = userData?['email'] ?? 'No email';
+        final String? avatarUrl = userData?['avatarUrl'];
+
+        ImageProvider? avatarImage;
+        if (avatarUrl != null && avatarUrl.isNotEmpty) {
+          if (avatarUrl.startsWith('http')) {
+            avatarImage = NetworkImage(avatarUrl);
+          } else {
+            avatarImage = AssetImage(avatarUrl);
+          }
+        }
+
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: primaryColor.withOpacity(0.1),
+                  backgroundImage: avatarImage,
+                  child: (avatarImage == null)
+                      ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
+                  )
+                      : null,
                 ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patientName,
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade500, fontSize: 14),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      if (reason.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            reason,
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black87, fontStyle: FontStyle.italic),
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
                   ),
-                  Text(
-                    reason,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        time,
+                        style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16),
+                      ),
+                    ),
+                    if (datePart.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        datePart,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade400),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-            IconButton(
-              icon: Icon(Icons.chevron_right, color: Colors.grey.shade400),
-              onPressed: () {},
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildNoAppointmentsCard(BuildContext context) {
-    // ... (код без змін)
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -281,7 +346,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             Icon(Icons.check_circle_outline, color: Colors.green.shade500),
             const SizedBox(width: 12),
             Text(
-              'No future appointments', // 👈 Змінено текст
+              'No future appointments',
               style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
             ),
           ],
@@ -298,7 +363,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    // ... (код без змін)
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -345,7 +409,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Future<void> _navigateToProfile() async {
-    // ... (код без змін)
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DoctorProfileScreen()),
@@ -354,7 +417,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    // ... (код без змін)
     final theme = Theme.of(context);
     final primaryTeal = theme.colorScheme.primary;
 
@@ -379,8 +441,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 }
 
-
-// --- 🚀 3. ЕКРАН КЕРУВАННЯ КАЛЕНДАРЕМ (ОНОВЛЕНО) ---
+// --- ЕКРАН КЕРУВАННЯ КАЛЕНДАРЕМ ---
 
 class ManageCalendarScreen extends StatefulWidget {
   const ManageCalendarScreen({super.key});
@@ -403,9 +464,8 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
     '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
   ];
 
-  // 🚀 ОНОВЛЕНО: Два окремих списки
-  Set<String> _availableSlots = {}; // Слоти, які лікар зробив доступними
-  Set<String> _bookedSlots = {}; // Слоти, які ВЖЕ ЗАБРОНЬОВАНІ пацієнтами
+  Set<String> _availableSlots = {};
+  Set<String> _bookedSlots = {};
 
   bool _isLoading = true;
 
@@ -413,17 +473,14 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // 🚀 4. ВИКЛИКАЄМО ОНОВЛЕНУ ФУНКЦІЮ
     _loadDayData(_selectedDay!);
   }
 
-  /// 🚀 5. ОНОВЛЕНА ФУНКЦІЯ
-  /// Завантажує І вільні, І заброньовані слоти
   Future<void> _loadDayData(DateTime day) async {
     setState(() {
       _isLoading = true;
-      _availableSlots = {}; // Скидаємо
-      _bookedSlots = {};    // Скидаємо
+      _availableSlots = {};
+      _bookedSlots = {};
     });
 
     if (_auth.currentUser == null) return;
@@ -432,7 +489,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
       String doctorId = _auth.currentUser!.uid;
       String docId = DateFormat('yyyy-MM-dd').format(day);
 
-      // 1. Отримати ВІЛЬНІ слоти (ті, що лікар зберіг)
       final availableDoc = await _firestore
           .collection('doctors')
           .doc(doctorId)
@@ -442,7 +498,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
 
       final availableForDay = Set<String>.from(availableDoc.data()?['slots'] ?? []);
 
-      // 2. Отримати ЗАБРОНЬОВАНІ слоти (з appointments)
       final bookedSnapshot = await _firestore
           .collection('appointments')
           .where('doctorId', isEqualTo: doctorId)
@@ -453,7 +508,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
           bookedSnapshot.docs.map((doc) => doc.data()['slot'] as String)
       );
 
-      // 3. Оновити стан
       if (mounted) {
         setState(() {
           _availableSlots = availableForDay;
@@ -462,15 +516,13 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
         });
       }
     } catch (e) {
-      print("Помилка завантаження даних дня: $e");
+      print("Error loading day data: $e");
       if (mounted) {
         setState(() { _isLoading = false; });
       }
     }
   }
 
-  /// 🚀 6. ФУНКЦІЯ ЗБЕРЕЖЕННЯ (ОНОВЛЕНО)
-  /// Тепер вона зберігає ТІЛЬКИ ті слоти, що не заброньовані
   Future<void> saveAvailability() async {
     if (_selectedDay == null) return;
 
@@ -479,8 +531,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
       String doctorId = _auth.currentUser!.uid;
       String docId = DateFormat('yyyy-MM-dd').format(_selectedDay!);
 
-      // ВАЖЛИВО: Ми переконуємось, що не зберігаємо слоти,
-      // які вже заброньовані (на випадок, якщо вони перетинаються)
       final finalAvailableSlots = _availableSlots.difference(_bookedSlots);
 
       await _firestore
@@ -488,11 +538,10 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
           .doc(doctorId)
           .collection('availability')
           .doc(docId)
-          .set({ 'slots': finalAvailableSlots.toList() }); // Зберігаємо чистий список
+          .set({ 'slots': finalAvailableSlots.toList() });
 
       if (mounted) {
         setState(() {
-          // Оновлюємо UI, щоб він відповідав збереженим даним
           _availableSlots = finalAvailableSlots;
           _isLoading = false;
         });
@@ -504,7 +553,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
       if (mounted) {
         setState(() { _isLoading = false; });
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error occurred while trying to update the schedule: $e'), backgroundColor: Colors.red)
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
         );
       }
     }
@@ -516,9 +565,8 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage your schedule'),
+        title: const Text('Manage your schedule'),
         actions: [
-          // ... (кнопка "Зберегти" без змін)
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: _isLoading
@@ -544,7 +592,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Календар ---
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -555,7 +602,7 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                 padding: const EdgeInsets.all(8.0),
                 child: TableCalendar(
                   locale: 'en_US',
-                  firstDay: DateTime.now(),
+                  firstDay: DateTime.now().subtract(const Duration(days: 1)),
                   lastDay: DateTime.now().add(const Duration(days: 365)),
                   focusedDay: _focusedDay,
                   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
@@ -564,7 +611,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                       _selectedDay = selectedDay;
                       _focusedDay = focusedDay;
                     });
-                    // 🚀 7. ВИКЛИКАЄМО ОНОВЛЕНУ ФУНКЦІЮ
                     _loadDayData(selectedDay);
                   },
                   calendarFormat: CalendarFormat.month,
@@ -587,7 +633,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
             ),
             const SizedBox(height: 24),
 
-            // --- Вибір слотів ---
             Text(
               'Available hours',
               style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -600,7 +645,6 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
             ),
             const SizedBox(height: 16),
 
-            // --- 🚀 8. ОНОВЛЕНА ЛОГІКА ВІДОБРАЖЕННЯ СІТКИ ---
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : Wrap(
@@ -610,34 +654,22 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                 final bool isBooked = _bookedSlots.contains(slot);
                 final bool isAvailable = _availableSlots.contains(slot);
 
-                // --- 🆕 ЛОГІКА ПЕРЕВІРКИ ЧАСУ ---
+                // --- ЛОГІКА ПЕРЕВІРКИ ЧАСУ (БЛОКУВАННЯ МИНУЛОГО) ---
                 bool isPastTime = false;
                 final now = DateTime.now();
 
-                // Перевіряємо, чи обраний день - це СЬОГОДНІ
                 if (_selectedDay != null && isSameDay(_selectedDay, now)) {
-                  // Парсимо слот (наприклад "14:30")
                   final parts = slot.split(':');
                   final hour = int.parse(parts[0]);
                   final minute = int.parse(parts[1]);
+                  final slotDateTime = DateTime(now.year, now.month, now.day, hour, minute);
 
-                  // Створюємо об'єкт часу для цього слота сьогодні
-                  final slotDateTime = DateTime(
-                    now.year,
-                    now.month,
-                    now.day,
-                    hour,
-                    minute,
-                  );
-
-                  // Якщо час слота менший за поточний час -> це минуле
                   if (slotDateTime.isBefore(now)) {
                     isPastTime = true;
                   }
                 }
                 // --------------------------------
 
-                // --- 1. Слот вже ЗАБРОНЬОВАНИЙ ---
                 if (isBooked) {
                   return Chip(
                     label: Text(slot),
@@ -650,19 +682,15 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
                   );
                 }
 
-                // --- 2. Слот МИНУВ (НОВА УМОВА) ---
                 if (isPastTime) {
                   return Chip(
                     label: Text(slot),
-                    backgroundColor: Colors.grey.shade200, // Світліший сірий
-                    avatar: Icon(Icons.history, size: 16, color: Colors.grey.shade500), // Іконка годинника
-                    labelStyle: TextStyle(
-                      color: Colors.grey.shade500,
-                    ),
+                    backgroundColor: Colors.grey.shade200,
+                    avatar: Icon(Icons.history, size: 16, color: Colors.grey.shade500),
+                    labelStyle: TextStyle(color: Colors.grey.shade500),
                   );
                 }
 
-                // --- 3. Слот ВІЛЬНИЙ (можна редагувати) ---
                 return ChoiceChip(
                   label: Text(slot),
                   selected: isAvailable,

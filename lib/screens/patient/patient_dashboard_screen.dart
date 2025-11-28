@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-// 🚀 1. ДОДАНО ІМПОРТИ ДЛЯ FIREBASE ТА ДАТ
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import 'package:health_app/services/api_service.dart';
-// 🚀 2. ДОДАНО ІМПОРТИ ЕКРАНІВ, НА ЯКІ ПЕРЕХОДИМО
 import 'package:health_app/screens/patient/health_profile_screen.dart';
-// (Переконайтеся, що цей шлях правильний)
 import 'package:health_app/screens/patient/book_appointment_screen.dart';
 
+// 🚀 ВАЖЛИВО: Імпорт нового віджета деталей
+import 'package:health_app/widgets/appointment_details_sheet.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -19,7 +18,6 @@ class PatientDashboardScreen extends StatefulWidget {
 }
 
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
-  // --- 3. ДОДАНО FIREBASE AUTH/FIRESTORE ---
   final ApiService _apiService = ApiService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -34,14 +32,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     _loadProfileData();
   }
 
-  /// Завантажує ім'я користувача та URL аватарки
   Future<void> _loadProfileData() async {
-    // Припускаємо, що getUserData() повертає дані залогіненого юзера (пацієнта)
     final userData = await _apiService.getUserData();
     if (mounted) {
       setState(() {
         _avatarUrl = userData?['avatarUrl'];
-        _userName = userData?['name'] ?? 'Пацієнт';
+        _userName = userData?['name'] ?? 'Patient';
         _isLoading = false;
       });
     }
@@ -56,7 +52,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: _buildHeader(context), // Використовуємо хедер
+        title: _buildHeader(context),
         toolbarHeight: 80,
         backgroundColor: theme.colorScheme.background,
         elevation: 0,
@@ -65,7 +61,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: accentOrange))
           : RefreshIndicator(
-        onRefresh: _loadProfileData, // Оновлення даних потягуванням
+        onRefresh: _loadProfileData,
         color: accentOrange,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -74,19 +70,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Привітання
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
-
-                // 2. AI Асистент
                 _buildAIAssistant(context, theme),
                 const SizedBox(height: 8),
-
-                // 2. Головна кнопка дії (Запис до лікаря)
                 _buildBookAction(context, theme),
                 const SizedBox(height: 30),
-
-                // 3. 🚀 НОВИЙ ВІДЖЕТ: Список майбутніх візитів
                 _buildMyAppointments(context, theme),
                 const SizedBox(height: 30),
               ],
@@ -99,7 +88,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   // --- Віджети Екрану ---
 
-  /// Привітання користувача
   Widget _buildWelcomeMessage(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +100,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           ),
         ),
         Text(
-          _userName ?? 'Пацієнт', // Використовуємо завантажене ім'я
+          _userName ?? 'Patient',
           style: theme.textTheme.headlineMedium?.copyWith(
             color: theme.colorScheme.onBackground,
             fontWeight: FontWeight.bold,
@@ -128,32 +116,26 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       title: 'AI Assistant',
       subtitle: 'Ask an AI Assistant',
       icon: Icons.smart_toy,
-      color: theme.colorScheme.primary, // Teal
+      color: theme.colorScheme.primary,
       onTap: () {
-        // Перехід на екран AI асистента
         Navigator.pushNamed(context, '/ai_assistant');
       },
     );
-
   }
 
-  /// Головна кнопка: Запис на прийом
   Widget _buildBookAction(BuildContext context, ThemeData theme) {
     return _buildMainActionButton(
       context: context,
       title: 'Make an appointment',
       subtitle: 'Find a doctor and book an appointment',
       icon: Icons.calendar_month_outlined,
-      color: theme.colorScheme.primary, // Teal
+      color: theme.colorScheme.primary,
       onTap: () {
-        // Перехід на екран бронювання
         Navigator.pushNamed(context, '/book_appointment');
       },
     );
   }
 
-  /// 🚀 4. НОВИЙ ВІДЖET ЗІ STREAMBUILDER
-  /// Показує список майбутніх візитів пацієнта
   Widget _buildMyAppointments(BuildContext context, ThemeData theme) {
     final String currentUserId = _auth.currentUser!.uid;
     final String todayDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -163,46 +145,58 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       children: [
         Text(
           'My appointments',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
 
-        // StreamBuilder автоматично слухає зміни в 'appointments'
         StreamBuilder<QuerySnapshot>(
           stream: _firestore
               .collection('appointments')
-              .where('patientId', isEqualTo: currentUserId) // 👈 Фільтр для пацієнта
-              .where('date', isGreaterThanOrEqualTo: todayDate) // Тільки майбутні
+              .where('patientId', isEqualTo: currentUserId)
+              .where('date', isGreaterThanOrEqualTo: todayDate)
               .orderBy('date')
               .orderBy('slot')
               .snapshots(),
           builder: (context, snapshot) {
-            // Стан завантаження
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            // Якщо помилка
             if (snapshot.hasError) {
-              return Center(child: Text('Помилка завантаження: ${snapshot.error}'));
+              return Center(child: Text('Error loading data: ${snapshot.error}'));
             }
-            // Якщо немає даних
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return _buildNoAppointmentsCard(context); // Картка "Немає записів"
+              return _buildNoAppointmentsCard(context);
             }
 
-            // Якщо дані є, будуємо список
             return Column(
               children: snapshot.data!.docs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
+
+                // 🚀 ОБГОРТАЄМО В GESTURE DETECTOR ДЛЯ ВІДКРИТТЯ ДЕТАЛЕЙ
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
-                  child: _buildAppointmentCard(
-                    context: context,
-                    doctorName: data['doctorName'] ?? 'Лікар',
-                    date: data['date'] ?? '??-??',
-                    time: data['slot'] ?? '??:??',
-                    status: data['status'] ?? 'pending',
+                  child: GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (context) => AppointmentDetailsSheet(
+                          appointmentId: doc.id,
+                          appointmentData: data,
+                          isDoctor: false, // 👈 Пацієнт не може редагувати результати
+                        ),
+                      );
+                    },
+                    child: _buildAppointmentCard(
+                      context: context,
+                      doctorName: data['doctorName'] ?? 'Doctor',
+                      date: data['date'] ?? '??-??',
+                      time: data['slot'] ?? '??:??',
+                      status: data['status'] ?? 'pending',
+                    ),
                   ),
                 );
               }).toList(),
@@ -213,7 +207,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  /// 🚀 Картка для одного візиту (для пацієнта)
   Widget _buildAppointmentCard({
     required BuildContext context,
     required String doctorName,
@@ -222,9 +215,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     required String status,
   }) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
 
-    // Форматуємо дату для кращого вигляду
     String formattedDate = '';
     try {
       formattedDate = DateFormat('d MMMM, yyyy').format(DateTime.parse(date));
@@ -232,7 +223,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       formattedDate = date;
     }
 
-    // Визначаємо колір та іконку для статусу
     IconData statusIcon = Icons.pending_outlined;
     Color statusColor = Colors.orange;
     if (status == 'confirmed') {
@@ -253,14 +243,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            // Іконка статусу
             CircleAvatar(
               radius: 24,
               backgroundColor: statusColor.withOpacity(0.1),
               child: Icon(statusIcon, color: statusColor, size: 28),
             ),
             const SizedBox(width: 16),
-            // Інформація про візит
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,20 +258,18 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '$formattedDate о $time',
+                    '$formattedDate at $time',
                     style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                   ),
                 ],
               ),
             ),
-            // TODO: Додати кнопку 'Скасувати'
           ],
         ),
       ),
     );
   }
 
-  /// Картка "Немає записів"
   Widget _buildNoAppointmentsCard(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
@@ -300,9 +286,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           children: [
             Icon(Icons.calendar_today_outlined, color: Colors.grey.shade500),
             const SizedBox(width: 12),
-            Text(
-              'You don\'t have any future appointments',
-              style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
+            Expanded(
+              child: Text(
+                'You don\'t have any future appointments',
+                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
+              ),
             ),
           ],
         ),
@@ -310,7 +298,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  /// Базовий віджет для кнопок-карток
   Widget _buildMainActionButton({
     required BuildContext context,
     required String title,
@@ -364,17 +351,14 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  /// 🚀 Навігація до профілю пацієнта
   Future<void> _navigateToProfile() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const HealthProfileScreen()), // Веде на профіль пацієнта
+      MaterialPageRoute(builder: (context) => const HealthProfileScreen()),
     );
-    // Оновлюємо дані (аватар/ім'я) після повернення
     _loadProfileData();
   }
 
-  /// Хедер з аватаром
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
     final primaryTeal = theme.colorScheme.primary;
@@ -383,7 +367,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         GestureDetector(
-          onTap: _navigateToProfile, // Веде на профіль пацієнта
+          onTap: _navigateToProfile,
           child: CircleAvatar(
             radius: 25,
             backgroundColor: Colors.grey.shade200,
@@ -391,7 +375,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 ? AssetImage(_avatarUrl!)
                 : null,
             child: _avatarUrl == null || !_avatarUrl!.startsWith('assets/')
-                ? Icon(Icons.person, color: primaryTeal, size: 30) // Іконка пацієнта
+                ? Icon(Icons.person, color: primaryTeal, size: 30)
                 : null,
           ),
         ),
