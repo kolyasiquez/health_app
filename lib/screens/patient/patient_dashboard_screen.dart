@@ -61,7 +61,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       final querySnapshot = await _firestore
           .collection('appointments')
           .where('patientId', isEqualTo: userId)
-          .where('date', isLessThan: todayDate) // Тільки минулі дати
+          .where('date', isLessThanOrEqualTo: todayDate) // Тільки минулі дати
           .orderBy('date', descending: true)    // Від нових до старих
           .limit(5)                             // Тільки 5 останніх
           .get();
