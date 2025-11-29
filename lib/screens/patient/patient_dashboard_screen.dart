@@ -6,9 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/screens/patient/health_profile_screen.dart';
 import 'package:health_app/screens/patient/book_appointment_screen.dart';
-
-// 🚀 ВАЖЛИВО: Імпорт нового віджета деталей
 import 'package:health_app/widgets/appointment_details_sheet.dart';
+
+// 👇 ВАЖЛИВО: Перевірте цей шлях. Це файл, де лежить ваш AIAssistantScreen
+import 'package:health_app/screens/ai_assistant/ai_assistant_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -26,6 +27,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   String? _userName;
   bool _isLoading = true;
 
+  // 👇 НОВЕ: Змінна, щоб крутити спінер на кнопці ШІ під час збору історії
+  bool _isAiLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +44,72 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         _userName = userData?['name'] ?? 'Patient';
         _isLoading = false;
       });
+    }
+  }
+
+  // 👇 ГОЛОВНА ЗМІНА: Метод для збору історії та відкриття ШІ
+  Future<void> _openAIAssistantWithHistory() async {
+    setState(() {
+      _isAiLoading = true; // Вмикаємо завантаження
+    });
+
+    final userId = _auth.currentUser!.uid;
+    final todayDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    try {
+      // 1. Робимо запит: шукаємо МИНУЛІ візити (ті, що вже відбулися)
+      final querySnapshot = await _firestore
+          .collection('appointments')
+          .where('patientId', isEqualTo: userId)
+          .where('date', isLessThan: todayDate) // Тільки минулі дати
+          .orderBy('date', descending: true)    // Від нових до старих
+          .limit(5)                             // Тільки 5 останніх
+          .get();
+
+      // 2. Використовуємо StringBuffer для створення тексту
+      StringBuffer historyBuffer = StringBuffer();
+      historyBuffer.writeln("Patient's Medical History (Last 5 visits):");
+
+      if (querySnapshot.docs.isEmpty) {
+        historyBuffer.writeln("No previous medical history recorded.");
+      } else {
+        for (var doc in querySnapshot.docs) {
+          final data = doc.data();
+          final date = data['date'] ?? 'Unknown date';
+          final doctor = data['doctorName'] ?? 'Unknown doctor';
+          // Якщо результатів ще немає, пишемо про це
+          final results = data['visitResults'] ?? 'No notes provided by doctor.';
+
+          historyBuffer.writeln("- Date: $date");
+          historyBuffer.writeln("  Doctor: $doctor");
+          historyBuffer.writeln("  Results/Notes: $results");
+          historyBuffer.writeln("---");
+        }
+      }
+
+      // 3. Відкриваємо екран і передаємо готовий текст
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AIAssistantScreen(
+              medicalContext: historyBuffer.toString(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading history: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAiLoading = false; // Вимикаємо завантаження
+        });
+      }
     }
   }
 
@@ -72,7 +142,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               children: [
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
-                _buildAIAssistant(context, theme),
+                _buildAIAssistant(context, theme), // Кнопка ШІ тут
                 const SizedBox(height: 8),
                 _buildBookAction(context, theme),
                 const SizedBox(height: 30),
@@ -110,16 +180,58 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
+  // 👇 ОНОВЛЕНО: Віджет кнопки AI Assistant
   Widget _buildAIAssistant(BuildContext context, ThemeData theme) {
-    return _buildMainActionButton(
-      context: context,
-      title: 'AI Assistant',
-      subtitle: 'Ask an AI Assistant',
-      icon: Icons.smart_toy,
-      color: theme.colorScheme.primary,
-      onTap: () {
-        Navigator.pushNamed(context, '/ai_assistant');
-      },
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
+        // Блокуємо натискання, якщо йде завантаження
+        onTap: _isAiLoading ? null : _openAIAssistantWithHistory,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                child: Icon(Icons.smart_toy, color: theme.colorScheme.primary, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Assistant',
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      // Змінюємо текст, якщо йде завантаження
+                      _isAiLoading ? 'Analyzing history...' : 'Ask AI based on your history',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Показуємо спінер або стрілочку
+              _isAiLoading
+                  ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2)
+              )
+                  : Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -135,6 +247,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       },
     );
   }
+
+  // ... (Решта методів: _buildMyAppointments, _buildAppointmentCard, etc. залишаються без змін)
+
+  // Для економії місця я їх не дублюю, але вони повинні бути тут, як у вашому старому файлі.
+  // 👇 Скопіюйте сюди методи _buildMyAppointments, _buildAppointmentCard, _buildNoAppointmentsCard, _buildMainActionButton, _navigateToProfile, _buildHeader
 
   Widget _buildMyAppointments(BuildContext context, ThemeData theme) {
     final String currentUserId = _auth.currentUser!.uid;
@@ -172,7 +289,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               children: snapshot.data!.docs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
 
-                // 🚀 ОБГОРТАЄМО В GESTURE DETECTOR ДЛЯ ВІДКРИТТЯ ДЕТАЛЕЙ
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
                   child: GestureDetector(
@@ -186,7 +302,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         builder: (context) => AppointmentDetailsSheet(
                           appointmentId: doc.id,
                           appointmentData: data,
-                          isDoctor: false, // 👈 Пацієнт не може редагувати результати
+                          isDoctor: false,
                         ),
                       );
                     },
@@ -215,7 +331,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     required String status,
   }) {
     final theme = Theme.of(context);
-
     String formattedDate = '';
     try {
       formattedDate = DateFormat('d MMMM, yyyy').format(DateTime.parse(date));

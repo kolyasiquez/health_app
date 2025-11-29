@@ -9,11 +9,17 @@ class OpenAiService {
   // Історія повідомлень
   final List<Map<String, String>> _history = [];
 
-  // НАЛАШТУВАННЯ ЛІМІТІВ
-  // 1. Максимальна кількість повідомлень у пам'яті (наприклад, 5 пар запитання-відповідь + системне)
+  // Ліміт історії
   static const int _maxHistoryCount = 11;
 
-  // Додати системне повідомлення (воно не буде видалятися при чистці)
+  // 1. БАЗОВА ІНСТРУКЦІЯ (ПЕРСОНА)
+  static const String _baseSystemInstruction =
+      'You are a professional medical assistant in the HealthApp application. '
+      'Your task is to answer the patient\'s questions, explain test results, and describe symptoms based on the provided data. '
+      'IMPORTANT: You do not replace a real doctor. If the situation appears critical or life-threatening, always advise the user to call an ambulance immediately. '
+      'Keep your answers concise, empathetic, and professional.';
+
+  // Метод для встановлення або оновлення системного повідомлення
   void setSystemMessage(String content) {
     if (_history.isNotEmpty && _history.first['role'] == 'system') {
       _history[0] = {'role': 'system', 'content': content};
@@ -22,12 +28,29 @@ class OpenAiService {
     }
   }
 
-  Future<String> getCompletion(String userMessage) async {
+  // 2. ОНОВЛЕНИЙ МЕТОД: Тепер приймає параметр context
+  Future<String> getCompletion(String userMessage, {String? context}) async {
     try {
+      // --- ЛОГІКА ОБРОБКИ КОНТЕКСТУ ---
+      if (context != null && context.isNotEmpty) {
+        // Якщо передали історію хвороби, додаємо її в інструкцію
+        String fullSystemMessage = '$_baseSystemInstruction\n\n'
+            'HERE IS THE PATIENT\'S MEDICAL HISTORY AND VISIT RESULTS:\n$context\n\n'
+            'Use this information to provide personalized advice. '
+            'If the user asks about their results, refer to the data above.';
+
+        setSystemMessage(fullSystemMessage);
+      } else {
+        // Якщо контексту немає, переконуємося, що хоча б базова інструкція є
+        if (_history.isEmpty || _history.first['role'] != 'system') {
+          setSystemMessage(_baseSystemInstruction);
+        }
+      }
+      // --------------------------------
+
       // Додаємо повідомлення користувача
       _history.add({'role': 'user', 'content': userMessage});
 
-      // ! ВАЖЛИВО: Перед відправкою обрізаємо історію, щоб не платити зайве
       _trimHistory();
 
       final response = await http.post(
@@ -37,10 +60,9 @@ class OpenAiService {
           'Authorization': 'Bearer $_apiKey',
         },
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
+          'model': 'gpt-4o-mini', // Рекомендую нову модель (або залиште gpt-3.5-turbo)
           'messages': _history,
           'temperature': 0.7,
-          // Можна також обмежити довжину самої відповіді (в токенах)
           'max_tokens': 500,
         }),
       );
@@ -50,50 +72,37 @@ class OpenAiService {
         final aiResponse = body['choices'][0]['message']['content'];
 
         _history.add({'role': 'assistant', 'content': aiResponse});
-
-        // Знову перевіряємо ліміт після відповіді
         _trimHistory();
 
         return aiResponse;
       } else {
-        // Якщо помилка, відкочуємо останнє повідомлення користувача
         _history.removeLast();
         final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception('Помилка API: ${errorBody['error']['message']}');
+        throw Exception('API Error: ${errorBody['error']['message']}');
       }
     } catch (e) {
       if (_history.isNotEmpty && _history.last['role'] == 'user') {
         _history.removeLast();
       }
-      throw Exception('Помилка запиту: $e');
+      throw Exception('Request Failed: $e');
     }
   }
 
-  // --- ЛОГІКА "КОВЗНОГО ВІКНА" ---
+  // --- ЛОГІКА "КОВЗНОГО ВІКНА" (без змін) ---
   void _trimHistory() {
-    // Якщо повідомлень менше ліміту - нічого не робимо
     if (_history.length <= _maxHistoryCount) return;
 
-    // Перевіряємо, чи є перше повідомлення системним
     bool hasSystemMessage = _history.isNotEmpty && _history.first['role'] == 'system';
-
-    // Скільки треба видалити
     int messagesToRemove = _history.length - _maxHistoryCount;
 
     if (hasSystemMessage) {
-      // Якщо є системне, ми його пропускаємо (індекс 0) і видаляємо старі повідомлення починаючи з індексу 1
-      // Наприклад: [System, Old1, Old2, New1, New2] -> видаляємо Old1, Old2 -> лишається [System, New1, New2]
       _history.removeRange(1, 1 + messagesToRemove);
     } else {
-      // Якщо системного немає, просто видаляємо найстаріші з початку
       _history.removeRange(0, messagesToRemove);
     }
-
-    print("Історія очищена. Поточний розмір: ${_history.length}");
   }
 
   void clearHistory() {
-    // При повному очищенні можна або видаляти все, або залишати системне
     if (_history.isNotEmpty && _history.first['role'] == 'system') {
       var sysMsg = _history.first;
       _history.clear();

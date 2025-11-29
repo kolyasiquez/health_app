@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:health_app/openai_service.dart'; // <-- Замініть на ваш шлях
 
 class AIAssistantScreen extends StatefulWidget {
-  const AIAssistantScreen({super.key});
+  final String medicalContext;
+
+  const AIAssistantScreen({
+    super.key,
+    required this.medicalContext,
+});
 
   @override
   _AIAssistantScreenState createState() => _AIAssistantScreenState();
@@ -35,7 +40,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
     // НОВЕ: Викликаємо API та обробляємо відповідь
     try {
-      final aiResponse = await _apiService.getCompletion(messageText);
+      final aiResponse = await _apiService.getCompletion(
+          messageText,
+          context: widget.medicalContext,
+      );
       setState(() {
         _messages.add({'sender': 'ai', 'message': aiResponse});
       });

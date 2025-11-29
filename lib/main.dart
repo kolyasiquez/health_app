@@ -143,7 +143,7 @@ class HealthApp extends StatelessWidget {
         '/doctor_dashboard': (context) => const DoctorDashboardScreen(),
         '/health_profile': (context) => const HealthProfileScreen(),
         '/appointments': (context) => const AppointmentListScreen(),
-        '/ai_assistant': (context) => const AIAssistantScreen(),
+        // '/ai_assistant': (context) => const AIAssistantScreen(),
         '/pending_verification': (context) => const PendingVerificationScreen(),
         '/admin_dashboard': (context) => const AdminDashboardScreen(),
 
