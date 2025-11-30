@@ -505,7 +505,12 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
           .get();
 
       final bookedForDay = Set<String>.from(
-          bookedSnapshot.docs.map((doc) => doc.data()['slot'] as String)
+          bookedSnapshot.docs
+              .where((doc){
+                final data = doc.data();
+                return data['status'] != 'cancelled';
+          })
+          .map((doc) => doc.data()['slot'] as String)
       );
 
       if (mounted) {
