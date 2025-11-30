@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 class AppointmentDetailsSheet extends StatefulWidget {
   final String appointmentId;
   final Map<String, dynamic> appointmentData;
-  final bool isDoctor; // 👈 Головний перемикач логіки
+  final bool isDoctor;
 
   const AppointmentDetailsSheet({
     super.key,
@@ -25,7 +25,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
   @override
   void initState() {
     super.initState();
-    // Завантажуємо існуючі результати, якщо вони є
     _resultsController.text = widget.appointmentData['visitResults'] ?? '';
   }
 
@@ -33,6 +32,94 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
   void dispose() {
     _resultsController.dispose();
     super.dispose();
+  }
+
+  // НОВЕ: Метод показу діалогу для лікаря (щоб ввести повідомлення)
+  void _showActionDialog(String status) {
+    final TextEditingController messageController = TextEditingController();
+    final bool isConfirming = status == 'confirmed';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isConfirming ? 'Confirm Appointment' : 'Decline Appointment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(isConfirming
+                ? 'You can add a note for the patient (optional):'
+                : 'Please specify the reason for cancellation:'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: messageController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: 'Type your message here...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isConfirming ? Colors.green : Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Закриваємо діалог
+              // Викликаємо оновлення статусу з повідомленням
+              _updateStatus(status, messageController.text.trim());
+            },
+            child: Text(isConfirming ? 'Confirm' : 'Decline'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ОНОВЛЕНО: Тепер приймає message
+  Future<void> _updateStatus(String newStatus, String? message) async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(widget.appointmentId)
+          .update({
+        'status': newStatus,
+        // Зберігаємо повідомлення лікаря (якщо воно є)
+        'statusMessage': message,
+      });
+
+      if (mounted) {
+        setState(() {
+          widget.appointmentData['status'] = newStatus;
+          if (message != null) widget.appointmentData['statusMessage'] = message;
+          _isSaving = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newStatus == 'confirmed' ? 'Appointment Confirmed!' : 'Appointment Declined'),
+            backgroundColor: newStatus == 'confirmed' ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _isSaving = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _saveResults() async {
@@ -47,15 +134,15 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
       });
 
       if (mounted) {
-        Navigator.pop(context); // Закриваємо вікно
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Результати збережено!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Results saved!'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Помилка: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -67,8 +154,9 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final data = widget.appointmentData;
+    final status = data['status'] ?? 'pending';
+    final statusMessage = data['statusMessage']; // Повідомлення від лікаря
 
-    // Форматування дати
     String formattedDate = data['date'];
     try {
       final date = DateFormat('yyyy-MM-dd').parse(data['date']);
@@ -80,7 +168,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
           left: 20,
           right: 20,
           top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20 // Для клавіатури
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -91,7 +179,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // "Ручка"
             Center(
               child: Container(
                 width: 40, height: 5,
@@ -100,30 +187,178 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Заголовок
             Text(
               widget.isDoctor ? 'Patient Details' : 'Appointment Details',
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(),
 
-            // Інформація про учасників
             _buildInfoRow(Icons.person, widget.isDoctor ? 'Patient' : 'Doctor',
                 widget.isDoctor ? (data['patientName'] ?? 'Unknown') : (data['doctorName'] ?? 'Unknown')),
             _buildInfoRow(Icons.calendar_today, 'Date', formattedDate),
             _buildInfoRow(Icons.access_time, 'Time', data['slot']),
 
-            // Коментар пацієнта (скарга)
             if (data['comment'] != null && data['comment'].toString().isNotEmpty)
               _buildInfoRow(Icons.comment, 'Complaint / Reason', data['comment']),
 
             const SizedBox(height: 20),
-            const Divider(),
+
+            // --- НОВЕ: СТАТУС ДЛЯ ПАЦІЄНТА ---
+            if (!widget.isDoctor) ...[
+              if (status == 'pending')
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.hourglass_empty, color: Colors.orange),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Thank you for booking! Please wait for the doctor to confirm.',
+                          style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (status != 'pending')
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: status == 'confirmed' ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: status == 'confirmed' ? Colors.green : Colors.red),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            status == 'confirmed' ? Icons.check_circle : Icons.cancel,
+                            color: status == 'confirmed' ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            status == 'confirmed' ? 'Appointment Confirmed' : 'Appointment Declined',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: status == 'confirmed' ? Colors.green : Colors.red,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Показуємо повідомлення від лікаря, якщо воно є
+                      if (statusMessage != null && statusMessage.toString().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Doctor\'s note: $statusMessage',
+                          style: const TextStyle(fontStyle: FontStyle.italic),
+                        ),
+                      ]
+                    ],
+                  ),
+                ),
+            ],
+
             const SizedBox(height: 10),
 
-            // --- БЛОК РЕЗУЛЬТАТІВ ВІЗИТУ ---
+            // --- БЛОК ДІЙ ЛІКАРЯ (ОНОВЛЕНО) ---
+            if (widget.isDoctor) ...[
+              const Text(
+                'Action Required',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+
+              if (status == 'pending')
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        // Викликаємо діалог замість миттєвої дії
+                        onPressed: _isSaving ? null : () => _showActionDialog('cancelled'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Decline'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        // Викликаємо діалог замість миттєвої дії
+                        onPressed: _isSaving ? null : () => _showActionDialog('confirmed'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                        ),
+                        child: const Text('Confirm'),
+                      ),
+                    ),
+                  ],
+                )
+              else
+              // Відображення статусу для лікаря (історія)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: status == 'confirmed'
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: status == 'confirmed' ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            status == 'confirmed' ? Icons.check_circle : Icons.cancel,
+                            color: status == 'confirmed' ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            status == 'confirmed' ? 'Confirmed' : 'Cancelled',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: status == 'confirmed' ? Colors.green : Colors.red,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (statusMessage != null && statusMessage.toString().isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text('Note: $statusMessage', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                      ]
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+            ],
+
+            // --- БЛОК РЕЗУЛЬТАТІВ ---
             Text(
-              'Visit Results / Doctor Notes',
+              'Visit Results',
               style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.primaryColor),
             ),
             const SizedBox(height: 10),
@@ -131,7 +366,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
             TextField(
               controller: _resultsController,
               maxLines: 5,
-              // 🚀 Якщо це лікар - можна редагувати. Якщо пацієнт - тільки читати.
               readOnly: !widget.isDoctor,
               decoration: InputDecoration(
                 hintText: widget.isDoctor
@@ -145,7 +379,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
 
             const SizedBox(height: 20),
 
-            // --- КНОПКА ЗБЕРЕЖЕННЯ (Тільки для лікаря) ---
             if (widget.isDoctor)
               SizedBox(
                 width: double.infinity,
