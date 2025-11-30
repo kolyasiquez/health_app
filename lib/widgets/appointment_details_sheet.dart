@@ -82,7 +82,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
   }
 
   // --- НОВЕ: ДІАЛОГ ДЛЯ ПАЦІЄНТА (Скасувати) ---
-  void _showPatientCancelDialog() {
+  void _showUserCancelDialog() {
     final TextEditingController reasonController = TextEditingController();
 
     showDialog(
@@ -123,7 +123,12 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
               String reason = reasonController.text.trim();
               if (reason.isEmpty) reason = "No reason provided";
 
-              _updateStatus('cancelled', "Patient cancelled: $reason");
+              if (widget.isDoctor) {
+                _updateStatus('cancelled', "Doctor cancelled: $reason");
+              }
+              else {
+                _updateStatus('cancelled', "Patient cancelled: $reason");
+              }
             },
             child: const Text('Cancel Appointment'),
           ),
@@ -461,12 +466,12 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
 
             // --- 🔴 НОВЕ: КНОПКА СКАСУВАННЯ ДЛЯ ПАЦІЄНТА ---
             // Відображається тільки пацієнту і якщо візит ще не скасований
-            if (!widget.isDoctor && status != 'cancelled') ...[
+            if (!widget.isDoctor && status != 'cancelled' || widget.isDoctor && status == 'confirmed') ...[
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _isSaving ? null : _showPatientCancelDialog,
+                  onPressed: _isSaving ? null : _showUserCancelDialog,
                   icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                   label: const Text('Cancel Appointment'),
                   style: OutlinedButton.styleFrom(
