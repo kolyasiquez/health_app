@@ -314,6 +314,26 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
         final data = doc.data()!;
         _availableSlots = List<String>.from(data['slots'] ?? []);
         _availableSlots.sort();
+
+        final now = DateTime.now();
+
+        final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
+
+        if (isToday){
+          _availableSlots.removeWhere((slot){
+            try {
+              final parts = slot.split(':');
+              final hour = int.parse(parts[0]);
+              final minute = int.parse(parts[1]);
+
+              final slotTime = DateTime(now.year, now.month, now.day, hour, minute);
+
+              return slotTime.isBefore(now);
+            } catch (e) {
+              return false;
+            }
+          });
+        }
       } else {
         _availableSlots = [];
       }
