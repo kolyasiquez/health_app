@@ -52,4 +52,5 @@ flutter:
   # Це дозволить додатку бачити вашу папку assets/images/
   assets:
     - assets/avatars/
+    - assets/doctor_avatars/
     - .env
