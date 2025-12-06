@@ -45,7 +45,15 @@ class ApiService {
         String? bio,
         String? specialization, // 👈 НОВИЙ ПАРАМЕТР
       }) async {
-    const String defaultAvatarPath = 'assets/images/default_person.png';
+
+    String defaultAvatarPath;
+
+    if (role == UserRole.doctor) {
+      defaultAvatarPath = 'assets/doctor_avatars/default_doctor.png';
+    }
+    else {
+      defaultAvatarPath = 'assets/avatars/default_person.png';
+    }
     final String collectionPath = _getCollectionForRole(role);
 
     String documentRole;
