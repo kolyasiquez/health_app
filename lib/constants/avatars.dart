@@ -6,6 +6,10 @@ const List<String> kDefaultAvatarPaths = [
   'assets/images/avatar_2.png',
   'assets/images/avatar_3.png',
   'assets/images/avatar_4.png',
+  'assets/images/avatar_5.png',
+  'assets/images/avatar_6.png',
+  'assets/images/avatar_7.png',
+  'assets/images/avatar_8.png',
   // Додайте тут стільки шляхів, скільки у вас аватарок
 ];
 
