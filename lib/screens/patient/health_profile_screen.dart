@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Для Logout
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:health_app/services/api_service.dart';
 
-// Константи (якщо вони у вас в окремому файлі - розкоментуйте імпорт зверху)
+// Константи
 const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
 const List<String> kDefaultAvatarPaths = [
   'assets/avatars/avatar_1.png',
   'assets/avatars/avatar_2.png',
   'assets/avatars/avatar_3.png',
   'assets/avatars/avatar_4.png',
-  'assets/avatars/avatar_5.png', // Додав ще одну для прикладу
+  'assets/avatars/avatar_5.png',
 ];
 
 class HealthProfileScreen extends StatefulWidget {
@@ -35,31 +35,42 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
   }
 
   Future<void> _loadProfileData() async {
-    final userData = await _apiService.getUserData();
-    if (mounted) {
-      setState(() {
-        _avatarUrl = userData?['avatarUrl'] ?? kDefaultPlaceholderPath;
-        _userName = userData?['name'] ?? 'Patient';
-        _userEmail = userData?['email'] ?? _auth.currentUser?.email ?? '';
-        _isLoading = false;
-      });
+    try {
+      final userData = await _apiService.getUserData();
+      if (mounted) {
+        setState(() {
+          _avatarUrl = userData?['avatarUrl'] ?? kDefaultPlaceholderPath;
+          _userName = userData?['name'] ?? 'Patient';
+          _userEmail = userData?['email'] ?? _auth.currentUser?.email ?? '';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   // --- ЛОГІКА ЗМІНИ АВАТАРКИ ---
   void _openAvatarAssetSelectionDialog() {
-    final primaryTeal = Theme.of(context).colorScheme.primary;
-
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.all(20),
           height: 300,
           child: Column(
             children: [
-              Text('Choose profile picture', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+              Text(
+                'Choose profile picture',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
               const SizedBox(height: 20),
               Expanded(
                 child: GridView.builder(
@@ -73,7 +84,9 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
                     final assetPath = kDefaultAvatarPaths[index];
                     return GestureDetector(
                       onTap: () {
-                        setState(() { _avatarUrl = assetPath; });
+                        setState(() {
+                          _avatarUrl = assetPath;
+                        });
                         _saveProfile();
                         Navigator.pop(context);
                       },
@@ -100,25 +113,66 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_avatarUrl != null) {
-      setState(() { _isLoading = true; });
       try {
         await _apiService.updateUserProfile({'avatarUrl': _avatarUrl});
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar updated successfully!')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Avatar updated successfully!')),
+          );
         }
       } catch (e) {
-        // Handle error
-      } finally {
-        if (mounted) setState(() { _isLoading = false; });
+        // Handle error silently or show snackbar
       }
     }
   }
 
-  Future<void> _signOut() async {
-    await _auth.signOut();
-    if (mounted) {
-      // Повертаємось на екран логіну (або видаляємо всі маршрути)
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  // --- ЛОГІКА ВИХОДУ З ПІДТВЕРДЖЕННЯМ ---
+
+  // 1. Показуємо діалог
+  void _confirmSignOut() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Log Out'),
+          content: const Text('Are you sure you want to log out?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          actions: [
+            // Кнопка Cancel
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Закриваємо діалог
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            // Кнопка Log Out
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Закриваємо діалог
+                _performSignOut(); // Виконуємо вихід
+              },
+              child: const Text('Log Out', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 2. Виконуємо сам вихід
+  Future<void> _performSignOut() async {
+    try {
+      await _auth.signOut();
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true)
+            .pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error signing out: $e')),
+        );
+      }
     }
   }
 
@@ -131,18 +185,13 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true, // Центруємо заголовок
+        centerTitle: true,
         backgroundColor: Colors.white,
-
-        // 🚀 ЗМІНА 1: Робимо колір елементів (стрілочки і тексту) фірмовим (Teal)
         foregroundColor: primaryTeal,
-
         elevation: 0,
-
-        // 🚀 ЗМІНА 2: Примусово додаємо кнопку "Назад", щоб вона точно була
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new), // Сучасна стрілочка
-          onPressed: () => Navigator.pop(context), // Повертає на Dashboard
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: _isLoading
@@ -156,7 +205,6 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
             const SizedBox(height: 30),
 
             _buildSectionTitle('Medical Records'),
-            // Цю кнопку теж можна залишити, вона дублює функцію повернення
             _buildMenuTile(
               icon: Icons.calendar_month_outlined,
               title: 'My Appointments',
@@ -170,7 +218,9 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
               title: 'Prescriptions',
               subtitle: 'Medicines & Recipes',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Prescriptions feature coming soon!")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Prescriptions feature coming soon!")),
+                );
               },
             ),
             _buildMenuTile(
@@ -204,12 +254,15 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: OutlinedButton(
-                onPressed: _signOut,
+                // ТУТ МИ ТЕПЕР ВИКЛИКАЄМО ФУНКЦІЮ ПІДТВЕРДЖЕННЯ
+                onPressed: _confirmSignOut,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: BorderSide(color: Colors.red.shade200),
                   padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -228,7 +281,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     );
   }
 
-  // --- ВІДЖЕТИ UI ---
+  // --- ВІДЖЕТИ UI (без змін) ---
 
   Widget _buildProfileHeader(ThemeData theme) {
     return Container(
@@ -247,7 +300,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary, // Помаранчевий
+                      color: theme.colorScheme.secondary,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
