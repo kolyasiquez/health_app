@@ -10,6 +10,9 @@ const List<String> kDefaultAvatarPaths = [
   'assets/avatars/avatar_3.png',
   'assets/avatars/avatar_4.png',
   'assets/avatars/avatar_5.png',
+  'assets/avatars/avatar_6.png',
+  'assets/avatars/avatar_7.png',
+  'assets/avatars/avatar_8.png',
 ];
 
 class HealthProfileScreen extends StatefulWidget {
