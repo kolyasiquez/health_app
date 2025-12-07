@@ -188,7 +188,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Text(data['name'] ?? 'No name', style: theme.textTheme.titleMedium),
                           Text(data['email'] ?? 'No email', style: theme.textTheme.bodyMedium),
                           Text(data['phoneNumber'] ?? 'No phone number', style: theme.textTheme.bodyMedium),
-                          Text(data['specialization'] ?? 'No specialization', style: theme.textTheme.bodyMedium)
+                          Text(data['specialization'] ?? 'No specialization', style: theme.textTheme.bodyMedium),
+                          Text(data['address'] ?? 'No address', style: theme.textTheme.bodyMedium)
                         ],
                       ),
                     ),

@@ -6,15 +6,15 @@ class AuthService {
   final _auth = FirebaseAuth.instance;
   final ApiService _apiService = ApiService();
 
-  // 🚀 ОНОВЛЕНО: Додано параметр phoneNumber як обов'язковий
   Future<User?> createUserWithEmailAndPassword(
       String email,
       String password,
       String name,
       UserRole role, {
-        required String phoneNumber, // 👈 ОБОВ'ЯЗКОВИЙ
+        required String phoneNumber,
         String? bio,
         String? specialization,
+        String? address, // 🚀 ОНОВЛЕНО: Приймаємо адресу
       }) async {
     try {
       if (role == UserRole.admin) {
@@ -26,15 +26,15 @@ class AuthService {
       final user = cred.user;
 
       if (user != null) {
-        // 🚀 ПЕРЕДАЄМО phoneNumber ДАЛІ В API SERVICE
         await _apiService.createUserDocument(
           user.uid,
           email,
           name,
-          phoneNumber, // 👈 ПЕРЕДАЄМО ТУТ
+          phoneNumber,
           role,
           bio: bio,
           specialization: specialization,
+          address: address, // 👈 Передаємо в API
         );
       }
       return user;

@@ -2,7 +2,6 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Визначаємо ролі користувачів
 enum UserRole { patient, doctor, admin }
 
 class ApiService {
@@ -34,25 +33,24 @@ class ApiService {
     }
   }
 
-  // 🚀 ОНОВЛЕНО: phoneNumber тепер обов'язковий аргумент
   Future<void> createUserDocument(
       String uid,
       String email,
       String name,
-      String phoneNumber, // 👈 Новий параметр
+      String phoneNumber,
       UserRole role, {
         String? bio,
         String? specialization,
+        String? address, // 🚀 ОНОВЛЕНО: Нове поле адреси
       }) async {
 
     String defaultAvatarPath;
-
     if (role == UserRole.doctor) {
       defaultAvatarPath = 'assets/doctor_avatars/default_doctor.png';
-    }
-    else {
+    } else {
       defaultAvatarPath = 'assets/avatars/default_person.png';
     }
+
     final String collectionPath = _getCollectionForRole(role);
 
     String documentRole;
@@ -67,31 +65,29 @@ class ApiService {
     final userData = {
       'email': email,
       'name': name,
-      'phoneNumber': phoneNumber, // 👈 Записуємо в базу
+      'phoneNumber': phoneNumber,
       'createdAt': FieldValue.serverTimestamp(),
       'avatarUrl': defaultAvatarPath,
       'age': null,
       'role': documentRole,
-      // 🚀 Зберігаємо біо і спеціалізацію ТІЛЬКИ для лікарів
+      // 🚀 Дані, специфічні для лікаря:
       'bio': (role == UserRole.doctor) ? bio : null,
       'specialization': (role == UserRole.doctor) ? specialization : null,
+      'address': (role == UserRole.doctor) ? address : null, // 👈 Зберігаємо адресу
       'licenseUrl': null,
     };
 
     final batch = _firestore.batch();
 
-    // 1. Створюємо профіль
     final userDocRef = _firestore.collection(collectionPath).doc(uid);
     batch.set(userDocRef, userData);
 
-    // 2. Створюємо роль
     final roleDocRef = _firestore.collection('user_roles').doc(uid);
     batch.set(roleDocRef, {'role': documentRole});
 
     await batch.commit();
   }
 
-  // Отримання даних
   Future<Map<String, dynamic>?> getUserData() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -112,7 +108,6 @@ class ApiService {
     }
   }
 
-  // Оновлення профілю (Універсальне)
   Future<void> updateUserProfile(Map<String, dynamic> data) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception("User not logged in.");

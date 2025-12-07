@@ -16,10 +16,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController(); // 🚀 Контролер для телефону
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // 🚀 ОНОВЛЕНО: Контролери для лікаря
   final _bioController = TextEditingController();
+  final _addressController = TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
   String? _selectedSpecialization;
@@ -34,6 +37,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _bioController.dispose();
+    _addressController.dispose(); // Не забуваємо
     super.dispose();
   }
 
@@ -50,7 +54,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 60),
-              Icon(Icons.favorite, size: 100, color: primaryTeal),
+              Icon(Icons.local_hospital, size: 80, color: primaryTeal),
               const SizedBox(height: 20),
               Text(
                 'Create account',
@@ -64,7 +68,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 style: SegmentedButton.styleFrom(
                   selectedBackgroundColor: primaryTeal.withOpacity(0.1),
                   selectedForegroundColor: primaryTeal,
-                  foregroundColor: theme.textTheme.bodyMedium?.color,
                 ),
                 segments: const [
                   ButtonSegment<UserRole>(
@@ -88,21 +91,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
               const SizedBox(height: 30),
 
-              // --- Стандартні поля для ВСІХ ---
+              // --- Загальні поля ---
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person)),
               ),
               const SizedBox(height: 20),
-
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.email)),
               ),
               const SizedBox(height: 20),
-
-              // 🚀 ПОЛЕ ТЕЛЕФОНУ (Тепер для всіх)
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -113,7 +113,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -126,35 +125,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 decoration: const InputDecoration(labelText: 'Repeat Password', prefixIcon: Icon(Icons.lock)),
               ),
 
-              // --- БЛОК ДЛЯ ЛІКАРЯ (Додатковий) ---
+              // --- БЛОК ЛІКАРЯ ---
               AnimatedCrossFade(
                 duration: const Duration(milliseconds: 300),
                 firstChild: Column(
                   children: [
                     const SizedBox(height: 20),
+                    const Divider(),
+                    const SizedBox(height: 10),
 
-                    // Інформаційна картка про дзвінок
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withOpacity(0.5)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline, color: Colors.orange),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'We will contact you via phone within 24 hours to verify your qualification.',
-                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.brown),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    Text("Doctor's Information", style: theme.textTheme.titleMedium?.copyWith(color: primaryTeal)),
+                    const SizedBox(height: 15),
 
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(
@@ -170,16 +151,47 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         setState(() { _selectedSpecialization = newValue; });
                       },
                     ),
+                    const SizedBox(height: 15),
 
+                    // 🚀 НОВЕ ПОЛЕ: Адреса
+                    TextField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(
+                          labelText: 'Clinic/Cabinet Address',
+                          prefixIcon: Icon(Icons.location_on_outlined),
+                          hintText: 'City, Street, Building, Room'
+                      ),
+                    ),
                     const SizedBox(height: 15),
 
                     TextField(
                       controller: _bioController,
                       decoration: const InputDecoration(
-                        labelText: 'About me (experience, etc.)',
+                        labelText: 'About me (experience, education)',
                         prefixIcon: Icon(Icons.description_outlined),
                       ),
                       maxLines: 3,
+                    ),
+
+                    const SizedBox(height: 15),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Your profile will be reviewed by admin. We may call you to verify details.',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.brown),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -202,6 +214,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
                 child: const Text('Already have an account? Sign in'),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -210,24 +223,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   _signup() async {
-    // 1. Перевірка паролів
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
       return;
     }
 
-    // 2. Перевірка загальних полів (Ім'я, пошта, ТЕЛЕФОН)
     if (_nameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
-        _phoneController.text.trim().isEmpty) { // 🚀 Перевірка телефону для всіх
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields (Name, Email, Phone).')));
+        _phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all general fields.')));
       return;
     }
 
-    // 3. Додаткова перевірка для лікаря
     if (_selectedRole == UserRole.doctor) {
       if (_selectedSpecialization == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a specialization.')));
+        return;
+      }
+      // 🚀 ПЕРЕВІРКА: Адреса обов'язкова для лікаря
+      if (_addressController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your clinic/cabinet address.')));
         return;
       }
       if (_bioController.text.trim().isEmpty) {
@@ -244,9 +259,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _passwordController.text,
         _nameController.text.trim(),
         _selectedRole,
-        phoneNumber: _phoneController.text.trim(), // 🚀 Передаємо телефон
+        phoneNumber: _phoneController.text.trim(),
+        // 🚀 Передаємо дані лікаря
         bio: _selectedRole == UserRole.doctor ? _bioController.text.trim() : null,
         specialization: _selectedRole == UserRole.doctor ? _selectedSpecialization : null,
+        address: _selectedRole == UserRole.doctor ? _addressController.text.trim() : null,
       );
 
       if (mounted) {
