@@ -1,10 +1,8 @@
-// lib/screens/auth/registration_screen.dart
-
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:health_app/screens/auth/auth_service.dart';
-import 'package:health_app/services/api_service.dart'; // Для UserRole
-import 'package:health_app/constants/constants.dart'; // 🚀 ІМПОРТУЄМО СПИСОК
+import 'package:health_app/services/api_service.dart';
+import 'package:health_app/constants/constants.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -18,12 +16,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController(); // 🚀 Контролер для телефону
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _bioController = TextEditingController();
 
   UserRole _selectedRole = UserRole.patient;
-  String? _selectedSpecialization; // Зберігаємо вибір тут
+  String? _selectedSpecialization;
 
   bool _isLoading = false;
 
@@ -31,6 +30,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _bioController.dispose();
@@ -88,18 +88,32 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
               const SizedBox(height: 30),
 
-              // --- Стандартні поля ---
+              // --- Стандартні поля для ВСІХ ---
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person)),
               ),
               const SizedBox(height: 20),
+
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.email)),
               ),
               const SizedBox(height: 20),
+
+              // 🚀 ПОЛЕ ТЕЛЕФОНУ (Тепер для всіх)
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: Icon(Icons.phone),
+                    hintText: '+380...'
+                ),
+              ),
+              const SizedBox(height: 20),
+
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -112,14 +126,36 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 decoration: const InputDecoration(labelText: 'Repeat Password', prefixIcon: Icon(Icons.lock)),
               ),
 
-              // --- БЛОК ДЛЯ ЛІКАРЯ (З'являється при виборі ролі) ---
+              // --- БЛОК ДЛЯ ЛІКАРЯ (Додатковий) ---
               AnimatedCrossFade(
                 duration: const Duration(milliseconds: 300),
                 firstChild: Column(
                   children: [
                     const SizedBox(height: 20),
 
-                    // 🚀 Випадаючий список (бере дані з constants.dart)
+                    // Інформаційна картка про дзвінок
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'We will contact you via phone within 24 hours to verify your qualification.',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.brown),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(
                         labelText: 'Specialization',
@@ -174,12 +210,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   _signup() async {
+    // 1. Перевірка паролів
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
       return;
     }
 
-    // Валідація лікаря
+    // 2. Перевірка загальних полів (Ім'я, пошта, ТЕЛЕФОН)
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty) { // 🚀 Перевірка телефону для всіх
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields (Name, Email, Phone).')));
+      return;
+    }
+
+    // 3. Додаткова перевірка для лікаря
     if (_selectedRole == UserRole.doctor) {
       if (_selectedSpecialization == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a specialization.')));
@@ -199,7 +244,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _passwordController.text,
         _nameController.text.trim(),
         _selectedRole,
-        // Передаємо дані далі
+        phoneNumber: _phoneController.text.trim(), // 🚀 Передаємо телефон
         bio: _selectedRole == UserRole.doctor ? _bioController.text.trim() : null,
         specialization: _selectedRole == UserRole.doctor ? _selectedSpecialization : null,
       );

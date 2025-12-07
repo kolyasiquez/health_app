@@ -1,5 +1,3 @@
-// lib/services/api_service.dart
-
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,14 +34,15 @@ class ApiService {
     }
   }
 
-  // 🚀 ОНОВЛЕНО: Додано параметр specialization
+  // 🚀 ОНОВЛЕНО: phoneNumber тепер обов'язковий аргумент
   Future<void> createUserDocument(
       String uid,
       String email,
       String name,
+      String phoneNumber, // 👈 Новий параметр
       UserRole role, {
         String? bio,
-        String? specialization, // 👈 НОВИЙ ПАРАМЕТР
+        String? specialization,
       }) async {
 
     String defaultAvatarPath;
@@ -68,13 +67,14 @@ class ApiService {
     final userData = {
       'email': email,
       'name': name,
+      'phoneNumber': phoneNumber, // 👈 Записуємо в базу
       'createdAt': FieldValue.serverTimestamp(),
       'avatarUrl': defaultAvatarPath,
       'age': null,
       'role': documentRole,
       // 🚀 Зберігаємо біо і спеціалізацію ТІЛЬКИ для лікарів
       'bio': (role == UserRole.doctor) ? bio : null,
-      'specialization': (role == UserRole.doctor) ? specialization : null, // 👈 ЗБЕРЕЖЕННЯ
+      'specialization': (role == UserRole.doctor) ? specialization : null,
       'licenseUrl': null,
     };
 

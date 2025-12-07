@@ -1,21 +1,20 @@
-// lib/screens/auth/auth_service.dart
-
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../services/api_service.dart';
+import 'package:health_app/services/api_service.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
   final ApiService _apiService = ApiService();
 
-  // 🚀 ОНОВЛЕНО: Додано параметр specialization
+  // 🚀 ОНОВЛЕНО: Додано параметр phoneNumber як обов'язковий
   Future<User?> createUserWithEmailAndPassword(
       String email,
       String password,
       String name,
       UserRole role, {
+        required String phoneNumber, // 👈 ОБОВ'ЯЗКОВИЙ
         String? bio,
-        String? specialization, // 👈 ПРИЙМАЄМО ТУТ
+        String? specialization,
       }) async {
     try {
       if (role == UserRole.admin) {
@@ -27,14 +26,15 @@ class AuthService {
       final user = cred.user;
 
       if (user != null) {
-        // 🚀 ПЕРЕДАЄМО ДАЛІ В API SERVICE
+        // 🚀 ПЕРЕДАЄМО phoneNumber ДАЛІ В API SERVICE
         await _apiService.createUserDocument(
           user.uid,
           email,
           name,
+          phoneNumber, // 👈 ПЕРЕДАЄМО ТУТ
           role,
           bio: bio,
-          specialization: specialization, // 👈 ПЕРЕДАЄМО ТУТ
+          specialization: specialization,
         );
       }
       return user;
