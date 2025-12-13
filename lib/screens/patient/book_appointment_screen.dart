@@ -670,12 +670,22 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start, // 👈 Щоб вирівняти по верху
                           children: [
-                            Text(widget.doctor.specialization, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                            Expanded(
+                              child: Text(
+                                widget.doctor.specialization,
+                                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                // Ми прибрали maxLines і overflow - тепер текст переноситься сам
+                              ),
+                            ),
                             const SizedBox(width: 8),
+                            // Блок рейтингу залишається праворуч
                             const Icon(Icons.star, color: Colors.amber, size: 16),
                             Text(
-                              widget.doctor.rating > 0 ? " ${widget.doctor.rating.toStringAsFixed(1)}" : " New",
+                              widget.doctor.rating > 0
+                                  ? " ${widget.doctor.rating.toStringAsFixed(1)}"
+                                  : " New",
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                           ],
