@@ -34,7 +34,131 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     super.dispose();
   }
 
-  // --- ДІАЛОГ ДЛЯ ЛІКАРЯ (Підтвердити/Відхилити) ---
+  // --- ЛОГІКА РЕЙТИНГУ (НОВЕ) ---
+  void _showRatingDialog() {
+    int selectedStars = 5;
+    final reviewController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Rate Your Visit'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('How was your experience with the doctor?'),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        onPressed: () {
+                          setStateDialog(() {
+                            selectedStars = index + 1;
+                          });
+                        },
+                        icon: Icon(
+                          index < selectedStars ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 32,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: reviewController,
+                    decoration: const InputDecoration(
+                      hintText: 'Write a review (optional)...',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _submitRating(selectedStars, reviewController.text.trim());
+                  },
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Транзакція для збереження рейтингу
+  Future<void> _submitRating(int stars, String review) async {
+    setState(() => _isSaving = true);
+
+    final doctorId = widget.appointmentData['doctorId'];
+    final doctorRef = FirebaseFirestore.instance.collection('doctors').doc(doctorId);
+    final appointmentRef = FirebaseFirestore.instance.collection('appointments').doc(widget.appointmentId);
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // 1. Отримуємо актуальні дані лікаря
+        final doctorDoc = await transaction.get(doctorRef);
+        if (!doctorDoc.exists) throw Exception("Doctor not found");
+
+        final doctorData = doctorDoc.data()!;
+
+        // Зчитуємо старі показники (якщо їх немає, то 0)
+        double currentTotalRating = (doctorData['ratingSum'] ?? 0).toDouble();
+        int currentReviewCount = (doctorData['reviewCount'] ?? 0).toInt();
+
+        // 2. Рахуємо нові
+        double newTotalRating = currentTotalRating + stars;
+        int newReviewCount = currentReviewCount + 1;
+        double newAverage = newTotalRating / newReviewCount;
+
+        // 3. Оновлюємо лікаря
+        transaction.update(doctorRef, {
+          'ratingSum': newTotalRating,
+          'reviewCount': newReviewCount,
+          'rating': newAverage, // Середнє арифметичне
+        });
+
+        // 4. Оновлюємо візит (додаємо оцінку туди)
+        transaction.update(appointmentRef, {
+          'rating': stars,
+          'review': review,
+        });
+      });
+
+      if (mounted) {
+        setState(() {
+          widget.appointmentData['rating'] = stars;
+          widget.appointmentData['review'] = review;
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thank you for your feedback!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // --- ЛОГІКА СТАТУСІВ (Стара) ---
   void _showActionDialog(String status) {
     final TextEditingController messageController = TextEditingController();
     final bool isConfirming = status == 'confirmed';
@@ -81,7 +205,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     );
   }
 
-  // --- ДІАЛОГ ДЛЯ ПАЦІЄНТА (Скасувати) ---
   void _showUserCancelDialog() {
     final TextEditingController reasonController = TextEditingController();
 
@@ -135,11 +258,8 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     );
   }
 
-  // Оновлення статусу в базі
   Future<void> _updateStatus(String newStatus, String? message) async {
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
       await FirebaseFirestore.instance
@@ -150,7 +270,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
         'statusMessage': message,
       });
 
-      // Якщо скасовано - звільняємо слот у лікаря
       if (newStatus == 'cancelled') {
         final String? doctorId = widget.appointmentData['doctorId'];
         final String? date = widget.appointmentData['date'];
@@ -188,9 +307,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
+        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
@@ -198,11 +315,8 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     }
   }
 
-  // --- ЗБЕРЕЖЕННЯ РЕЗУЛЬТАТІВ + ЗАВЕРШЕННЯ ВІЗИТУ ---
   Future<void> _saveResults() async {
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
       await FirebaseFirestore.instance
@@ -210,15 +324,14 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
           .doc(widget.appointmentId)
           .update({
         'visitResults': _resultsController.text.trim(),
-        'status': 'completed', // 👈 АВТОМАТИЧНО ЗАВЕРШУЄМО ВІЗИТ
+        'status': 'completed',
       });
 
       if (mounted) {
-        // Оновлюємо локальні дані для UI
         widget.appointmentData['status'] = 'completed';
         widget.appointmentData['visitResults'] = _resultsController.text.trim();
 
-        Navigator.pop(context); // Закриваємо шторку
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Visit completed & results saved successfully!'),
@@ -237,7 +350,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     }
   }
 
-  // Допоміжна функція для отримання кольору та тексту статусу
   Map<String, dynamic> _getStatusStyle(String status) {
     switch (status) {
       case 'confirmed':
@@ -258,7 +370,10 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
     final status = data['status'] ?? 'pending';
     final statusMessage = data['statusMessage'];
 
-    // Форматування дати
+    // Перевіряємо, чи вже залишено відгук
+    final int? myRating = data['rating'];
+    final String? myReview = data['review'];
+
     String formattedDate = data['date'];
     try {
       final date = DateFormat('yyyy-MM-dd').parse(data['date']);
@@ -283,7 +398,6 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Рисочка зверху
             Center(
               child: Container(
                 width: 40,
@@ -297,8 +411,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
 
             Text(
               widget.isDoctor ? 'Patient Details' : 'Appointment Details',
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(),
 
@@ -316,8 +429,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
 
             const SizedBox(height: 20),
 
-            // --- БЛОК СТАТУСУ ---
-            // Для pending у пацієнта - окремий жовтий блок
+            // БЛОК СТАТУСУ
             if (status == 'pending' && !widget.isDoctor)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -333,14 +445,12 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
                     const Expanded(
                       child: Text(
                         'Wait for the doctor to confirm.',
-                        style: TextStyle(
-                            color: Colors.orange, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
               )
-            // Для всіх інших статусів (confirmed, completed, cancelled)
             else if (status != 'pending')
               Container(
                 width: double.infinity,
@@ -379,6 +489,70 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
               ),
 
             const SizedBox(height: 10),
+
+            // --- БЛОК ОЦІНЮВАННЯ (ТІЛЬКИ ДЛЯ ПАЦІЄНТА) ---
+            if (!widget.isDoctor && status == 'completed') ...[
+              const SizedBox(height: 10),
+
+              if (myRating == null)
+              // Якщо ще не оцінив
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text("How was your visit?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _isSaving ? null : _showRatingDialog,
+                        icon: const Icon(Icons.star, color: Colors.white),
+                        label: const Text("Rate Doctor"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.white,
+                        ),
+                      )
+                    ],
+                  ),
+                )
+              else
+              // Якщо ВЖЕ оцінив
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Your Feedback:", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: List.generate(5, (index) {
+                          return Icon(
+                            index < myRating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 20,
+                          );
+                        }),
+                      ),
+                      if (myReview != null && myReview.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text('"$myReview"', style: const TextStyle(fontStyle: FontStyle.italic)),
+                      ]
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
 
             // --- КНОПКИ ДЛЯ ЛІКАРЯ (Confirm/Decline) ---
             if (widget.isDoctor && status == 'pending') ...[
@@ -430,14 +604,12 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
             TextField(
               controller: _resultsController,
               maxLines: 5,
-              // Редагувати може тільки лікар, і тільки якщо візит не скасовано
-              readOnly: !widget.isDoctor || status == 'cancelled',
+              readOnly: !widget.isDoctor || status == 'cancelled' || status == 'completed',
               decoration: InputDecoration(
                 hintText: widget.isDoctor
                     ? 'Enter diagnosis, prescription or notes here...'
                     : 'No results added yet.',
-                border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: widget.isDoctor ? Colors.white : Colors.grey[100],
               ),
@@ -445,21 +617,15 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
 
             const SizedBox(height: 20),
 
-            // --- КНОПКА ЗБЕРЕГТИ (Тільки для лікаря) ---
-            // Показуємо, якщо візит не скасовано
-            if (widget.isDoctor && status != 'cancelled')
+            // КНОПКА ЗБЕРЕГТИ (Тільки для лікаря)
+            if (widget.isDoctor && status != 'cancelled' && status != 'completed')
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _isSaving ? null : _saveResults,
                   icon: _isSaving
-                      ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.save),
-                  // Змінюємо текст кнопки для ясності
                   label: Text(_isSaving ? 'Saving...' : 'Finish Visit & Save Results'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -469,8 +635,7 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
                 ),
               ),
 
-            // --- КНОПКА СКАСУВАННЯ ДЛЯ ПАЦІЄНТА ---
-            // Тільки якщо візит ще не завершено і не скасовано
+            // КНОПКА СКАСУВАННЯ
             if ((!widget.isDoctor && status != 'cancelled' && status != 'completed') ||
                 (widget.isDoctor && status == 'confirmed')) ...[
               const SizedBox(height: 20),
@@ -507,11 +672,8 @@ class _AppointmentDetailsSheetState extends State<AppointmentDetailsSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
               ],
             ),
           ),

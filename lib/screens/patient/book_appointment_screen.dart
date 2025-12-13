@@ -4,30 +4,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:health_app/constants/constants.dart'; // Переконайтеся, що шлях правильний
+import 'package:health_app/constants/constants.dart';
 
-// --- КЛАС DOCTOR ---
+// --- ОНОВЛЕНИЙ КЛАС DOCTOR ---
 class Doctor {
   final String id;
   final String name;
   final String specialization;
+  final double rating;      // Середній рейтинг
+  final int reviewCount;    // Кількість відгуків
 
   Doctor({
     required this.id,
     required this.name,
     required this.specialization,
+    required this.rating,
+    required this.reviewCount,
   });
 
   factory Doctor.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    // Отримуємо спеціалізацію або біографію
     final spec = data['specialization'] as String? ??
         data['bio'] as String? ??
         'General Practitioner';
+
+    // 👇 Зчитуємо рейтинг. Якщо його немає - ставимо 0.0
+    final double ratingVal = (data['rating'] is num)
+        ? (data['rating'] as num).toDouble()
+        : 0.0;
+
+    final int reviewsVal = (data['reviewCount'] is num)
+        ? (data['reviewCount'] as num).toInt()
+        : 0;
 
     return Doctor(
       id: doc.id,
       name: data['name'] as String? ?? 'Unnamed Doctor',
       specialization: spec,
+      rating: ratingVal,
+      reviewCount: reviewsVal,
     );
   }
 }
@@ -58,11 +75,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _loadDoctorsFromServer();
   }
 
+  // Завантажуємо лікарів з бази
   Future<void> _loadDoctorsFromServer() async {
     try {
       final QuerySnapshot snapshot = await _apiService.getDoctorsList();
-      final doctorsList =
-      snapshot.docs.map((doc) => Doctor.fromSnapshot(doc)).toList();
+      final doctorsList = snapshot.docs.map((doc) => Doctor.fromSnapshot(doc)).toList();
 
       if (mounted) {
         setState(() {
@@ -214,35 +231,60 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     leading: CircleAvatar(
-                      radius: 25,
+                      radius: 28,
                       backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
                       child: Text(
                         doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : '?',
                         style: TextStyle(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 20
+                            fontSize: 24
                         ),
                       ),
                     ),
-                    title: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        doctor.specialization,
-                        style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    title: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          doctor.specialization,
+                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+
+                        // 👇 ОСЬ ТУТ ПОКАЗУЄМО РЕЙТИНГ
+                        Row(
+                          children: [
+                            const Icon(Icons.star, size: 16, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              doctor.rating > 0
+                                  ? doctor.rating.toStringAsFixed(1)
+                                  : "New", // Якщо рейтингів немає
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "(${doctor.reviewCount} reviews)",
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    trailing: Icon(Icons.calendar_today, color: theme.colorScheme.secondary),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8)
+                      ),
+                      child: Icon(Icons.calendar_today, color: theme.colorScheme.primary, size: 20),
+                    ),
                     onTap: () {
                       _showBookingSheet(context, doctor);
                     },
@@ -257,7 +299,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 }
 
-// --- ВМІСТ ШТОРКИ БРОНЮВАННЯ ---
+// --- ВМІСТ ШТОРКИ БРОНЮВАННЯ (Без змін, тільки для контексту) ---
 class _BookingSheetContent extends StatefulWidget {
   final Doctor doctor;
   const _BookingSheetContent({required this.doctor});
@@ -316,7 +358,6 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
         _availableSlots.sort();
 
         final now = DateTime.now();
-
         final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
 
         if (isToday){
@@ -325,9 +366,7 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
               final parts = slot.split(':');
               final hour = int.parse(parts[0]);
               final minute = int.parse(parts[1]);
-
               final slotTime = DateTime(now.year, now.month, now.day, hour, minute);
-
               return slotTime.isBefore(now);
             } catch (e) {
               return false;
@@ -349,7 +388,6 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
     }
   }
 
-  // 🚀 ГОЛОВНА ЛОГІКА БРОНЮВАННЯ + ДІАЛОГ
   Future<void> _bookAppointment() async {
     if (_selectedDay == null || _selectedSlot == null) return;
 
@@ -360,18 +398,12 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
       if (user == null) throw Exception("User not logged in");
 
       final String patientId = user.uid;
-      // Спроба взяти ім'я або email, якщо ім'я пусте
       final String patientName = user.displayName ?? user.email ?? 'Patient';
 
       final String doctorId = widget.doctor.id;
       final String docDateId = DateFormat('yyyy-MM-dd').format(_selectedDay!);
 
-      final doctorSlotRef = _firestore
-          .collection('doctors')
-          .doc(doctorId)
-          .collection('availability')
-          .doc(docDateId);
-
+      final doctorSlotRef = _firestore.collection('doctors').doc(doctorId).collection('availability').doc(docDateId);
       final newAppointmentRef = _firestore.collection('appointments').doc();
 
       final appointmentData = {
@@ -382,11 +414,10 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
         'date': docDateId,
         'slot': _selectedSlot,
         'comment': _commentController.text,
-        'status': 'pending', // ⚠️ Статус за замовчуванням
+        'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // --- Транзакція ---
       await _firestore.runTransaction((transaction) async {
         final slotDoc = await transaction.get(doctorSlotRef);
         if (!slotDoc.exists) throw Exception("Doctor's schedule not found.");
@@ -402,10 +433,9 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
       });
 
       if (mounted) {
-        // 🚀 НОВЕ: Показуємо гарний діалог замість простого SnackBar
         await showDialog(
           context: context,
-          barrierDismissible: false, // Користувач мусить натиснути кнопку
+          barrierDismissible: false,
           builder: (context) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Column(
@@ -418,7 +448,6 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
             content: const Text(
               "Thank you for your reservation.\n\n"
                   "Your appointment status is currently PENDING.\n"
-                  "Please wait for the doctor to confirm the visit. "
                   "You can check the status in 'My Appointments'.",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16),
@@ -433,8 +462,8 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () {
-                    Navigator.pop(context); // Закрити діалог
-                    Navigator.pop(context); // Закрити шторку бронювання (повернутися на список)
+                    Navigator.pop(context);
+                    Navigator.pop(context);
                   },
                   child: const Text("OK, Got it"),
                 ),
@@ -524,15 +553,21 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
               ),
               const SizedBox(height: 24),
 
+              // Відображення рейтингу і в шторці
               Text(
                 widget.doctor.name,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              Text(
-                widget.doctor.specialization,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              Row(
+                children: [
+                  Text(widget.doctor.specialization, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                  const Spacer(),
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  Text(
+                    widget.doctor.rating > 0 ? " ${widget.doctor.rating.toStringAsFixed(1)}" : " New",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
               ),
               const Divider(height: 32),
 
