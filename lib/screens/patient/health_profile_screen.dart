@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:health_app/services/api_service.dart';
+// 👇 Імпорт нашого нового спільного екрану
+import 'package:health_app/screens/common/appointments_list_screen.dart';
 
-// Константи
+// Константи для аватарок
 const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
 const List<String> kDefaultAvatarPaths = [
   'assets/avatars/avatar_1.png',
@@ -124,14 +126,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           );
         }
       } catch (e) {
-        // Handle error silently or show snackbar
+        // Handle error silently
       }
     }
   }
 
-  // --- ЛОГІКА ВИХОДУ З ПІДТВЕРДЖЕННЯМ ---
-
-  // 1. Показуємо діалог
+  // --- ЛОГІКА ВИХОДУ ---
   void _confirmSignOut() {
     showDialog(
       context: context,
@@ -141,18 +141,14 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           content: const Text('Are you sure you want to log out?'),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           actions: [
-            // Кнопка Cancel
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Закриваємо діалог
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
-            // Кнопка Log Out
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Закриваємо діалог
-                _performSignOut(); // Виконуємо вихід
+                Navigator.of(context).pop();
+                _performSignOut();
               },
               child: const Text('Log Out', style: TextStyle(color: Colors.red)),
             ),
@@ -162,7 +158,6 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     );
   }
 
-  // 2. Виконуємо сам вихід
   Future<void> _performSignOut() async {
     try {
       await _auth.signOut();
@@ -187,7 +182,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: primaryTeal,
@@ -207,57 +202,61 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
             const SizedBox(height: 30),
 
+            // СЕКЦІЯ 1: МЕДИЧНІ ДАНІ
             _buildSectionTitle('Medical Records'),
+
+            // Перехід на екран всіх записів (Common Screen)
             _buildMenuTile(
-              icon: Icons.calendar_month_outlined,
-              title: 'My Appointments',
-              subtitle: 'Back to Dashboard',
+              icon: Icons.history,
+              title: 'All Appointments',
+              subtitle: 'Full history & upcoming visits',
               onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            _buildMenuTile(
-              icon: Icons.description_outlined,
-              title: 'Prescriptions',
-              subtitle: 'Medicines & Recipes',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Prescriptions feature coming soon!")),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    // isDoctor: false, бо це профіль пацієнта
+                    builder: (context) => const AppointmentsListScreen(isDoctor: false),
+                  ),
                 );
               },
             ),
+
+            // Заглушка для майбутнього функціоналу
             _buildMenuTile(
-              icon: Icons.analytics_outlined,
-              title: 'Test Results',
-              subtitle: 'Blood tests, X-rays, etc.',
-              onTap: () {},
+              icon: Icons.note_alt_outlined,
+              title: 'Medical Notes',
+              subtitle: 'Allergies & Personal notes',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Feature coming soon!")),
+                );
+              },
             ),
 
             const SizedBox(height: 20),
 
-            _buildSectionTitle('Settings & Support'),
+            // СЕКЦІЯ 2: ПРО ПРОГРАМУ
+            _buildSectionTitle('Application'),
+
             _buildMenuTile(
-              icon: Icons.settings_outlined,
-              title: 'General Settings',
-              onTap: () {},
-            ),
-            _buildMenuTile(
-              icon: Icons.notifications_none,
-              title: 'Notifications',
-              onTap: () {},
-            ),
-            _buildMenuTile(
-              icon: Icons.help_outline,
-              title: 'Help & Support',
-              onTap: () {},
+              icon: Icons.info_outline,
+              title: 'About App',
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'Health App',
+                  applicationVersion: '1.0.0',
+                  applicationLegalese: 'Diploma Project 2025',
+                );
+              },
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 40),
 
+            // КНОПКА ВИХОДУ
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: OutlinedButton(
-                // ТУТ МИ ТЕПЕР ВИКЛИКАЄМО ФУНКЦІЮ ПІДТВЕРДЖЕННЯ
                 onPressed: _confirmSignOut,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
@@ -284,7 +283,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     );
   }
 
-  // --- ВІДЖЕТИ UI (без змін) ---
+  // --- ВІДЖЕТИ UI ---
 
   Widget _buildProfileHeader(ThemeData theme) {
     return Container(
@@ -367,7 +366,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -385,10 +384,10 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blueGrey.withOpacity(0.05),
+            color: Colors.teal.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.blueGrey[700]),
+          child: Icon(icon, color: Colors.teal),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
