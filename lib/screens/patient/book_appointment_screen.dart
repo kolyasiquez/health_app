@@ -13,6 +13,7 @@ class Doctor {
   final String specialization;
   final double rating;
   final int reviewCount;
+  final String? avatarUrl; // 🚀 НОВЕ ПОЛЕ
 
   Doctor({
     required this.id,
@@ -20,6 +21,7 @@ class Doctor {
     required this.specialization,
     required this.rating,
     required this.reviewCount,
+    this.avatarUrl,
   });
 
   factory Doctor.fromSnapshot(DocumentSnapshot doc) {
@@ -29,9 +31,11 @@ class Doctor {
         data['bio'] as String? ??
         'General Practitioner';
 
-    // Безпечне зчитування рейтингу
     final double ratingVal = (data['rating'] is num) ? (data['rating'] as num).toDouble() : 0.0;
     final int reviewsVal = (data['reviewCount'] is num) ? (data['reviewCount'] as num).toInt() : 0;
+
+    // 🚀 Зчитуємо аватарку
+    final String? avatar = data['avatarUrl'] as String?;
 
     return Doctor(
       id: doc.id,
@@ -39,6 +43,7 @@ class Doctor {
       specialization: spec,
       rating: ratingVal,
       reviewCount: reviewsVal,
+      avatarUrl: avatar,
     );
   }
 }
@@ -61,12 +66,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   List<Doctor> _allDoctors = [];
   List<Doctor> _filteredDoctors = [];
 
-  // Список ID улюблених лікарів
   List<String> _favoriteDoctorIds = [];
-
-  // Перемикач "Тільки улюблені"
   bool _showFavoritesOnly = false;
-
   String? _selectedSpecialization;
 
   @override
@@ -85,19 +86,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // 👇 ВИПРАВЛЕНО: Завантажуємо з 'patients'
   Future<void> _loadFavorites() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     try {
       final doc = await _firestore.collection('patients').doc(user.uid).get();
-
       if (doc.exists && doc.data() != null && doc.data()!.containsKey('favoriteDoctors')) {
         setState(() {
           _favoriteDoctorIds = List<String>.from(doc.data()!['favoriteDoctors']);
         });
-        // Оновлюємо фільтр після завантаження
         _filterDoctors();
       }
     } catch (e) {
@@ -105,14 +103,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     }
   }
 
-  // 👇 ВИПРАВЛЕНО: Записуємо в 'patients'
   Future<void> _toggleFavorite(String doctorId) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final isFavorite = _favoriteDoctorIds.contains(doctorId);
 
-    // Оновлюємо UI миттєво
     setState(() {
       if (isFavorite) {
         _favoriteDoctorIds.remove(doctorId);
@@ -122,7 +118,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       _filterDoctors();
     });
 
-    // Звертаємось до колекції patients
     final userRef = _firestore.collection('patients').doc(user.uid);
 
     try {
@@ -164,8 +159,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         final nameMatches = doctor.name.toLowerCase().contains(query);
         final specMatches = _selectedSpecialization == null ||
             doctor.specialization == _selectedSpecialization;
-
-        // Фільтр по улюблених
         final favoriteMatches = !_showFavoritesOnly || _favoriteDoctorIds.contains(doctor.id);
 
         return nameMatches && specMatches && favoriteMatches;
@@ -203,12 +196,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // --- БЛОК ФІЛЬТРІВ ---
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Пошук
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -219,8 +210,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Дропдаун спеціалізацій
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
@@ -265,7 +254,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
                 const SizedBox(height: 12),
 
-                // ПЕРЕМИКАЧ "Show Favorites Only"
                 Container(
                   decoration: BoxDecoration(
                     color: _showFavoritesOnly ? Colors.red.withOpacity(0.05) : Colors.transparent,
@@ -300,7 +288,6 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             ),
           ),
 
-          // --- СПИСОК ЛІКАРІВ ---
           Expanded(
             child: _filteredDoctors.isEmpty
                 ? Center(
@@ -337,17 +324,24 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     leading: CircleAvatar(
                       radius: 28,
                       backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                      child: Text(
+                      // 🚀 ЛОГІКА ВІДОБРАЖЕННЯ АВАТАРКИ
+                      backgroundImage: (doctor.avatarUrl != null && doctor.avatarUrl!.isNotEmpty)
+                          ? (doctor.avatarUrl!.startsWith('assets/')
+                          ? AssetImage(doctor.avatarUrl!) as ImageProvider
+                          : NetworkImage(doctor.avatarUrl!))
+                          : null,
+                      child: (doctor.avatarUrl == null || doctor.avatarUrl!.isEmpty)
+                          ? Text(
                         doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : '?',
                         style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 24),
-                      ),
+                      )
+                          : null,
                     ),
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(child: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
 
-                        // Кнопка Улюблені
                         IconButton(
                           icon: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -648,21 +642,50 @@ class _BookingSheetContentState extends State<_BookingSheetContent> {
               ),
               const SizedBox(height: 24),
 
-              Text(
-                widget.doctor.name,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+              // 🚀 АВАТАРКА В ШТОРЦІ (оновлено)
               Row(
                 children: [
-                  Text(widget.doctor.specialization, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                  const Spacer(),
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
-                  Text(
-                    widget.doctor.rating > 0 ? " ${widget.doctor.rating.toStringAsFixed(1)}" : " New",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    backgroundImage: (widget.doctor.avatarUrl != null && widget.doctor.avatarUrl!.isNotEmpty)
+                        ? (widget.doctor.avatarUrl!.startsWith('assets/')
+                        ? AssetImage(widget.doctor.avatarUrl!) as ImageProvider
+                        : NetworkImage(widget.doctor.avatarUrl!))
+                        : null,
+                    child: (widget.doctor.avatarUrl == null || widget.doctor.avatarUrl!.isEmpty)
+                        ? Text(
+                      widget.doctor.name.isNotEmpty ? widget.doctor.name[0].toUpperCase() : '?',
+                      style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold, fontSize: 24),
+                    )
+                        : null,
                   ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.doctor.name,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        ),
+                        Row(
+                          children: [
+                            Text(widget.doctor.specialization, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.star, color: Colors.amber, size: 16),
+                            Text(
+                              widget.doctor.rating > 0 ? " ${widget.doctor.rating.toStringAsFixed(1)}" : " New",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
+
               const Divider(height: 32),
 
               Text('Select a day', style: Theme.of(context).textTheme.titleLarge),
