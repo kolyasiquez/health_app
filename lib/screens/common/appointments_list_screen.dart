@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// 👇 1. Імпортуємо твій файл з деталями (перевір шлях!)
+import 'package:health_app/widgets/appointment_details_sheet.dart';
+
 class AppointmentsListScreen extends StatefulWidget {
-  final bool isDoctor; // Головний перемикач: true = Лікар, false = Пацієнт
+  final bool isDoctor;
 
   const AppointmentsListScreen({super.key, required this.isDoctor});
 
@@ -15,11 +18,12 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final List<DocumentSnapshot> _appointments = [];
+  // Змінив список на змінну, щоб можна було легко оновлювати
+  List<DocumentSnapshot> _appointments = [];
   bool _isLoading = false;
-  bool _hasMore = true; // Чи є ще записи на сервері
-  final int _documentLimit = 10; // Скільки вантажити за раз
-  DocumentSnapshot? _lastDocument; // Курсор для пагінації
+  bool _hasMore = true;
+  final int _documentLimit = 10;
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
@@ -27,7 +31,16 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
     _getAppointments();
   }
 
-  // --- ЛОГІКА ЗАВАНТАЖЕННЯ ДАНИХ ---
+  // Функція для оновлення списку (наприклад, після скасування запису в шторці)
+  Future<void> _refreshList() async {
+    setState(() {
+      _appointments = [];
+      _lastDocument = null;
+      _hasMore = true;
+    });
+    await _getAppointments();
+  }
+
   Future<void> _getAppointments() async {
     if (_isLoading) return;
 
@@ -38,41 +51,30 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
     final userId = _auth.currentUser!.uid;
 
     try {
-      // Визначаємо, по якому полю шукати
-      // Якщо я лікар -> шукаю свої записи по doctorId
-      // Якщо я пацієнт -> шукаю свої записи по patientId
       final String searchField = widget.isDoctor ? 'doctorId' : 'patientId';
 
       Query query = _firestore
           .collection('appointments')
           .where(searchField, isEqualTo: userId)
-          .orderBy('date', descending: true) // Спочатку нові
+          .orderBy('date', descending: true)
           .limit(_documentLimit);
 
-      // Якщо це дозавантаження (сторінка 2, 3...), починаємо після останнього
       if (_lastDocument != null) {
         query = query.startAfterDocument(_lastDocument!);
       }
 
       QuerySnapshot querySnapshot = await query.get();
 
-      // Якщо прийшло менше ліміту, значить це кінець списку
       if (querySnapshot.docs.length < _documentLimit) {
         _hasMore = false;
       }
 
-      // Додаємо нові записи до списку
       if (querySnapshot.docs.isNotEmpty) {
         _lastDocument = querySnapshot.docs.last;
         _appointments.addAll(querySnapshot.docs);
       }
     } catch (e) {
       debugPrint("Error loading appointments: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
-      }
     }
 
     if (mounted) {
@@ -82,7 +84,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
     }
   }
 
-  // --- UI ЕЛЕМЕНТ ОДНОГО ЗАПИСУ ---
+  // --- ВІДЖЕТ ОДНОГО ЗАПИСУ ---
   Widget _buildAppointmentItem(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
@@ -90,13 +92,10 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
     final time = data['slot'] ?? '--:--';
     final status = data['status'] ?? 'pending';
 
-    // АДАПТИВНИЙ ЗАГОЛОВОК:
-    // Лікарю показуємо ім'я пацієнта. Пацієнту - ім'я лікаря.
     final String titleName = widget.isDoctor
         ? (data['patientName'] ?? 'Patient')
         : (data['doctorName'] ?? 'Doctor');
 
-    // Налаштування кольорів статусу
     Color statusColor = Colors.orange;
     IconData statusIcon = Icons.access_time;
 
@@ -112,42 +111,63 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.1),
-          child: Icon(statusIcon, color: statusColor),
-        ),
-        title: Text(titleName, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text('$date at $time'),
-              ],
+      child: InkWell( // 👇 Додали InkWell для клікабельності
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          // 👇 2. ВІДКРИВАЄМО ТВОЮ ШТОРКУ ТУТ
+          await showModalBottomSheet(
+            context: context,
+            isScrollControlled: true, // Щоб шторка могла підніматися на весь екран
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
             ),
-            const SizedBox(height: 6),
-            // Бейдж зі статусом
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+            builder: (context) => AppointmentDetailsSheet(
+              appointmentId: doc.id,     // Передаємо ID документа
+              appointmentData: data,     // Передаємо дані
+              isDoctor: widget.isDoctor, // Передаємо роль
+            ),
+          );
+
+          // Коли шторка закриється, оновлюємо список (щоб побачити новий статус)
+          _refreshList();
+        },
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(12),
+          leading: CircleAvatar(
+            backgroundColor: statusColor.withOpacity(0.1),
+            child: Icon(statusIcon, color: statusColor),
+          ),
+          title: Text(titleName, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text('$date at $time'),
+                ],
               ),
-              child: Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey), // Стрілочка
         ),
       ),
     );
@@ -164,41 +184,47 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _appointments.isEmpty && !_isLoading
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.calendar_month_outlined, size: 60, color: Colors.grey[300]),
-                  const SizedBox(height: 10),
-                  Text(
-                    widget.isDoctor ? "No appointments found" : "No visit history",
-                    style: const TextStyle(color: Colors.grey),
+      body: RefreshIndicator( // 👇 Додав можливість потягнути вниз, щоб оновити
+        onRefresh: _refreshList,
+        child: Column(
+          children: [
+            Expanded(
+              child: _appointments.isEmpty && !_isLoading
+                  ? Center(
+                child: SingleChildScrollView( // Щоб працював RefreshIndicator на пустому екрані
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                      Icon(Icons.calendar_month_outlined, size: 60, color: Colors.grey[300]),
+                      const SizedBox(height: 10),
+                      Text(
+                        widget.isDoctor ? "No appointments found" : "No visit history",
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              )
+                  : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(), // Важливо для RefreshIndicator
+                itemCount: _appointments.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == _appointments.length) {
+                    return _buildLoadMoreButton();
+                  }
+                  return _buildAppointmentItem(_appointments[index]);
+                },
               ),
-            )
-                : ListView.builder(
-              // +1 додає місце для кнопки "Load More" внизу
-              itemCount: _appointments.length + 1,
-              itemBuilder: (context, index) {
-                if (index == _appointments.length) {
-                  return _buildLoadMoreButton();
-                }
-                return _buildAppointmentItem(_appointments[index]);
-              },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildLoadMoreButton() {
-    // Якщо більше немає даних
     if (!_hasMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),
@@ -206,7 +232,6 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
       );
     }
 
-    // Якщо йде завантаження
     if (_isLoading) {
       return const Center(
         child: Padding(
@@ -216,7 +241,6 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
       );
     }
 
-    // Кнопка "Завантажити ще"
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
       child: OutlinedButton(
