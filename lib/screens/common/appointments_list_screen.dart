@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart'; // Бібліотека графіків
 
-// 👇 1. Імпортуємо твій файл з деталями (перевір шлях!)
+// Імпорт твого файлу з деталями
 import 'package:health_app/widgets/appointment_details_sheet.dart';
 
 class AppointmentsListScreen extends StatefulWidget {
@@ -18,34 +19,83 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Змінив список на змінну, щоб можна було легко оновлювати
+  // Змінні для списку (пагінація)
   List<DocumentSnapshot> _appointments = [];
-  bool _isLoading = false;
+  bool _isListLoading = false;
   bool _hasMore = true;
   final int _documentLimit = 10;
   DocumentSnapshot? _lastDocument;
 
+  // --- ЗМІННІ ДЛЯ СТАТИСТИКИ ---
+  bool _isStatsLoading = true;
+  int _statsConfirmed = 0;
+  int _statsCancelled = 0;
+  int _statsPending = 0;
+  int _statsCompleted = 0; // 👈 ДОДАЛИ НОВУ ЗМІННУ
+
+  // Оновлюємо загальну суму
+  int get _totalVisits => _statsConfirmed + _statsCancelled + _statsPending + _statsCompleted;
+
   @override
   void initState() {
     super.initState();
+    _fetchStats();
     _getAppointments();
   }
 
-  // Функція для оновлення списку (наприклад, після скасування запису в шторці)
   Future<void> _refreshList() async {
     setState(() {
       _appointments = [];
       _lastDocument = null;
       _hasMore = true;
+      _isStatsLoading = true;
     });
+    _fetchStats();
     await _getAppointments();
   }
 
+  // --- ОТРИМАННЯ СТАТИСТИКИ ---
+  Future<void> _fetchStats() async {
+    final userId = _auth.currentUser!.uid;
+    final String searchField = widget.isDoctor ? 'doctorId' : 'patientId';
+
+    final baseQuery = _firestore.collection('appointments').where(searchField, isEqualTo: userId);
+
+    try {
+      // Робимо 4 запити для кожного статусу
+      final pendingQuery = baseQuery.where('status', isEqualTo: 'pending').count();
+      final confirmedQuery = baseQuery.where('status', isEqualTo: 'confirmed').count();
+      final cancelledQuery = baseQuery.where('status', isEqualTo: 'cancelled').count();
+      final completedQuery = baseQuery.where('status', isEqualTo: 'completed').count(); // 👈 4-й запит
+
+      final results = await Future.wait([
+        pendingQuery.get(),
+        confirmedQuery.get(),
+        cancelledQuery.get(),
+        completedQuery.get(), // 👈 Чекаємо 4-й результат
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _statsPending = results[0].count ?? 0;
+          _statsConfirmed = results[1].count ?? 0;
+          _statsCancelled = results[2].count ?? 0;
+          _statsCompleted = results[3].count ?? 0; // 👈 Записуємо результат
+          _isStatsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching stats: $e");
+      if (mounted) setState(() => _isStatsLoading = false);
+    }
+  }
+
+  // --- ОТРИМАННЯ СПИСКУ ЗАПИСІВ ---
   Future<void> _getAppointments() async {
-    if (_isLoading) return;
+    if (_isListLoading) return;
 
     setState(() {
-      _isLoading = true;
+      _isListLoading = true;
     });
 
     final userId = _auth.currentUser!.uid;
@@ -79,9 +129,150 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
 
     if (mounted) {
       setState(() {
-        _isLoading = false;
+        _isListLoading = false;
       });
     }
+  }
+
+  // --- ВІДЖЕТ ГРАФІКА ---
+  Widget _buildChartSection() {
+    if (_isStatsLoading) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_totalVisits == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.grey.shade200, blurRadius: 10, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            widget.isDoctor ? "Patients Statistics" : "My Schedule Statistics",
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: Stack(
+              children: [
+                PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 60,
+                    startDegreeOffset: -90,
+                    sections: _showingSections(),
+                  ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _totalVisits.toString(),
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.teal),
+                      ),
+                      const Text("Total", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Оновлена легенда (2 ряди, бо 4 елементи не влізуть в один)
+          Wrap(
+            spacing: 20,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildLegendItem(Colors.green, "Confirmed", _statsConfirmed),
+              _buildLegendItem(Colors.blue, "Completed", _statsCompleted), // 👈 Додали Completed
+              _buildLegendItem(Colors.orange, "Pending", _statsPending),
+              _buildLegendItem(Colors.red, "Cancelled", _statsCancelled),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _showingSections() {
+    if (_totalVisits == 0) {
+      return [PieChartSectionData(color: Colors.grey.shade200, value: 1, title: '', radius: 25)];
+    }
+
+    final double total = _totalVisits.toDouble();
+
+    String getPercentage(int value) {
+      if (value == 0) return '';
+      return '${((value / total) * 100).toStringAsFixed(0)}%';
+    }
+
+    return [
+      if (_statsCompleted > 0) // 👈 Додали синій сектор
+        PieChartSectionData(
+          color: Colors.blue,
+          value: _statsCompleted.toDouble(),
+          title: getPercentage(_statsCompleted),
+          radius: 30, // Трохи виділяємо завершені
+          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      if (_statsConfirmed > 0)
+        PieChartSectionData(
+          color: Colors.green,
+          value: _statsConfirmed.toDouble(),
+          title: getPercentage(_statsConfirmed),
+          radius: 28,
+          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      if (_statsPending > 0)
+        PieChartSectionData(
+          color: Colors.orange,
+          value: _statsPending.toDouble(),
+          title: getPercentage(_statsPending),
+          radius: 25,
+          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      if (_statsCancelled > 0)
+        PieChartSectionData(
+          color: Colors.red,
+          value: _statsCancelled.toDouble(),
+          title: getPercentage(_statsCancelled),
+          radius: 25,
+          titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+    ];
+  }
+
+  Widget _buildLegendItem(Color color, String text, int count) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+            const SizedBox(width: 6),
+            Text(text, style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(count.toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      ],
+    );
   }
 
   // --- ВІДЖЕТ ОДНОГО ЗАПИСУ ---
@@ -96,6 +287,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
         ? (data['patientName'] ?? 'Patient')
         : (data['doctorName'] ?? 'Doctor');
 
+    // Налаштування кольорів для всіх статусів
     Color statusColor = Colors.orange;
     IconData statusIcon = Icons.access_time;
 
@@ -105,30 +297,30 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
     } else if (status == 'cancelled') {
       statusColor = Colors.red;
       statusIcon = Icons.cancel_outlined;
+    } else if (status == 'completed') { // 👈 Додали обробку completed в списку
+      statusColor = Colors.blue;
+      statusIcon = Icons.task_alt;
     }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell( // 👇 Додали InkWell для клікабельності
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
-          // 👇 2. ВІДКРИВАЄМО ТВОЮ ШТОРКУ ТУТ
           await showModalBottomSheet(
             context: context,
-            isScrollControlled: true, // Щоб шторка могла підніматися на весь екран
+            isScrollControlled: true,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
             ),
             builder: (context) => AppointmentDetailsSheet(
-              appointmentId: doc.id,     // Передаємо ID документа
-              appointmentData: data,     // Передаємо дані
-              isDoctor: widget.isDoctor, // Передаємо роль
+              appointmentId: doc.id,
+              appointmentData: data,
+              isDoctor: widget.isDoctor,
             ),
           );
-
-          // Коли шторка закриється, оновлюємо список (щоб побачити новий статус)
           _refreshList();
         },
         child: ListTile(
@@ -167,7 +359,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
               ),
             ],
           ),
-          trailing: const Icon(Icons.chevron_right, color: Colors.grey), // Стрілочка
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         ),
       ),
     );
@@ -184,38 +376,47 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: RefreshIndicator( // 👇 Додав можливість потягнути вниз, щоб оновити
+      body: RefreshIndicator(
         onRefresh: _refreshList,
-        child: Column(
-          children: [
-            Expanded(
-              child: _appointments.isEmpty && !_isLoading
-                  ? Center(
-                child: SingleChildScrollView( // Щоб працював RefreshIndicator на пустому екрані
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                      Icon(Icons.calendar_month_outlined, size: 60, color: Colors.grey[300]),
-                      const SizedBox(height: 10),
-                      Text(
-                        widget.isDoctor ? "No appointments found" : "No visit history",
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _buildChartSection(),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                child: Text(
+                  "Detailed List",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
                 ),
-              )
-                  : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(), // Важливо для RefreshIndicator
-                itemCount: _appointments.length + 1,
-                itemBuilder: (context, index) {
+              ),
+            ),
+            _appointments.isEmpty && !_isListLoading
+                ? SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calendar_month_outlined, size: 60, color: Colors.grey[300]),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.isDoctor ? "No appointments found" : "No visit history",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+                : SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (context, index) {
                   if (index == _appointments.length) {
                     return _buildLoadMoreButton();
                   }
                   return _buildAppointmentItem(_appointments[index]);
                 },
+                childCount: _appointments.length + 1,
               ),
             ),
           ],
@@ -232,7 +433,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
       );
     }
 
-    if (_isLoading) {
+    if (_isListLoading) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(20.0),
