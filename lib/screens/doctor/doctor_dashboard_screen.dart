@@ -6,8 +6,6 @@ import 'package:table_calendar/table_calendar.dart';
 
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/screens/doctor/doctor_profile_screen.dart';
-
-// 🚀 ВАЖЛИВО: Імпорт нового віджета деталей
 import 'package:health_app/widgets/appointment_details_sheet.dart';
 
 class DoctorDashboardScreen extends StatefulWidget {
@@ -157,10 +155,11 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               children: snapshot.data!.docs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
                 final String appointmentId = doc.id;
-                // Беремо ID пацієнта для завантаження даних
-                final String patientId = data['patientId'] ?? '';
 
-                // 🚀 ОБГОРТАЄМО В GESTURE DETECTOR ДЛЯ ВІДКРИТТЯ ДЕТАЛЕЙ
+                // Отримуємо ID та резервне ім'я
+                final String patientId = data['patientId'] ?? '';
+                final String fallbackName = data['patientName'] ?? 'Patient';
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
                   child: GestureDetector(
@@ -174,13 +173,14 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         builder: (context) => AppointmentDetailsSheet(
                           appointmentId: appointmentId,
                           appointmentData: data,
-                          isDoctor: true, // 👈 Лікар може редагувати результати
+                          isDoctor: true,
                         ),
                       );
                     },
                     child: _buildAppointmentCard(
                       context: context,
-                      patientId: patientId, // Передаємо ID, щоб картка сама завантажила фото
+                      patientId: patientId,
+                      fallbackName: fallbackName,
                       time: data['slot'] ?? '??:??',
                       date: data['date'],
                       reason: data['comment'] ?? 'No comment',
@@ -195,17 +195,15 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  // Картка з завантаженням даних пацієнта (Fix для червоного екрану)
+  // 🔥 ГОЛОВНИЙ МЕТОД ДЛЯ КАРТКИ
   Widget _buildAppointmentCard({
     required BuildContext context,
     required String patientId,
+    required String fallbackName,
     required String time,
     required String reason,
     String? date,
   }) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
-
     String datePart = '';
     if (date != null) {
       try {
@@ -218,114 +216,169 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       } catch (e) { datePart = date; }
     }
 
+    // Якщо ID немає, показуємо дані з appointment (резервні)
+    if (patientId.isEmpty) {
+      return _buildCardContent(
+          context: context,
+          name: fallbackName,
+          email: 'No ID provided',
+          avatarUrl: null, // Аватарки немає -> буде літера
+          reason: reason,
+          time: time,
+          datePart: datePart
+      );
+    }
+
+    // 🚀 ЗАВАНТАЖЕННЯ ДАНИХ З PATIENTS
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(patientId).get(),
+      future: FirebaseFirestore.instance.collection('patients').doc(patientId).get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(child: SizedBox(height: 80, child: Center(child: CircularProgressIndicator())));
+
+        String displayName = fallbackName;
+        String displayEmail = 'Patient';
+        String? displayAvatarUrl;
+
+        // Якщо дані успішно завантажились
+        if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+
+          displayName = userData['name'] ?? fallbackName;
+          displayEmail = userData['email'] ?? 'No email';
+
+          // 🔥 ОСЬ ТУТ БЕРЕМО АВАТАРКУ З ПАЦІЄНТА
+          displayAvatarUrl = userData['avatarUrl'];
         }
 
-        Map<String, dynamic>? userData;
-        if (snapshot.hasData && snapshot.data!.exists) {
-          userData = snapshot.data!.data() as Map<String, dynamic>;
-        }
-
-        final String name = userData?['name'] ?? 'Unknown Patient';
-        final String email = userData?['email'] ?? 'No email';
-        final String? avatarUrl = userData?['avatarUrl'];
-
-        ImageProvider? avatarImage;
-        if (avatarUrl != null && avatarUrl.isNotEmpty) {
-          if (avatarUrl.startsWith('http')) {
-            avatarImage = NetworkImage(avatarUrl);
-          } else {
-            avatarImage = AssetImage(avatarUrl);
-          }
-        }
-
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: primaryColor.withOpacity(0.1),
-                  backgroundImage: avatarImage,
-                  child: (avatarImage == null)
-                      ? Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
-                  )
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        email,
-                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade500, fontSize: 14),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      if (reason.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            reason,
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black87, fontStyle: FontStyle.italic),
-                            maxLines: 2, overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        time,
-                        style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16),
-                      ),
-                    ),
-                    if (datePart.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        datePart,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade400),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
+        // Відображаємо картку (навіть якщо вантажиться, показуємо старі дані щоб не блимало)
+        return _buildCardContent(
+            context: context,
+            name: displayName,
+            email: displayEmail,
+            avatarUrl: displayAvatarUrl, // Передаємо URL сюди
+            reason: reason,
+            time: time,
+            datePart: datePart
         );
       },
+    );
+  }
+
+  // 🔥 ВІДЖЕТ ВІДОБРАЖЕННЯ (З ЛОГІКОЮ АВАТАРКИ)
+  Widget _buildCardContent({
+    required BuildContext context,
+    required String name,
+    required String email,
+    required String? avatarUrl, // Може бути null, http... або assets/...
+    required String reason,
+    required String time,
+    required String datePart,
+  }) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
+    // --- ЛОГІКА ВИБОРУ КАРТИНКИ ---
+    ImageProvider? avatarImage;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      if (avatarUrl.startsWith('http')) {
+        // Якщо це посилання на інтернет
+        avatarImage = NetworkImage(avatarUrl);
+      } else {
+        // Якщо це локальний файл (як у тебе на скріншоті assets/avatars/...)
+        avatarImage = AssetImage(avatarUrl);
+      }
+    }
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- АВАТАРКА АБО ЛІТЕРА ---
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: primaryColor.withOpacity(0.1),
+              backgroundImage: avatarImage, // Сюди підставляється картинка
+              // Якщо картинка не завантажилась (помилка), в консоль піде лог
+              onBackgroundImageError: avatarImage != null
+                  ? (_, __) { print("Error loading avatar: $avatarUrl"); }
+                  : null,
+              // Якщо картинки немає (null) АБО помилка завантаження -> показуємо літеру
+              child: (avatarImage == null)
+                  ? Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor),
+              )
+                  : null,
+            ),
+            const SizedBox(width: 16),
+
+            // --- ІНФОРМАЦІЯ ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade500, fontSize: 14),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (reason.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        reason,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black87, fontStyle: FontStyle.italic),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // --- ЧАС ---
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    time,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16),
+                  ),
+                ),
+                if (datePart.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    datePart,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade400),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -507,10 +560,10 @@ class _ManageCalendarScreenState extends State<ManageCalendarScreen> {
       final bookedForDay = Set<String>.from(
           bookedSnapshot.docs
               .where((doc){
-                final data = doc.data();
-                return data['status'] != 'cancelled';
+            final data = doc.data();
+            return data['status'] != 'cancelled';
           })
-          .map((doc) => doc.data()['slot'] as String)
+              .map((doc) => doc.data()['slot'] as String)
       );
 
       if (mounted) {
