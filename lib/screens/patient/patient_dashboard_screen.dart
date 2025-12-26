@@ -1,3 +1,4 @@
+import 'dart:async'; // Для таймера каруселі
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,10 +6,9 @@ import 'package:intl/intl.dart';
 
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/screens/patient/health_profile_screen.dart';
-import 'package:health_app/screens/patient/book_appointment_screen.dart';
 import 'package:health_app/widgets/appointment_details_sheet.dart';
 
-// 👇 ВАЖЛИВО: Перевірте цей шлях. Це файл, де лежить ваш AIAssistantScreen
+// Переконайтеся, що шлях правильний
 import 'package:health_app/screens/ai_assistant/ai_assistant_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   String? _userName;
   bool _isLoading = true;
 
-  // 👇 НОВЕ: Змінна, щоб крутити спінер на кнопці ШІ під час збору історії
+  // Змінна для спінера на кнопці ШІ
   bool _isAiLoading = false;
 
   @override
@@ -47,26 +47,26 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
   }
 
-  // 👇 ГОЛОВНА ЗМІНА: Метод для збору історії та відкриття ШІ
+  // --- ЛОГІКА ШІ: Збір історії та відкриття екрану ---
   Future<void> _openAIAssistantWithHistory() async {
     setState(() {
-      _isAiLoading = true; // Вмикаємо завантаження
+      _isAiLoading = true;
     });
 
     final userId = _auth.currentUser!.uid;
     final todayDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     try {
-      // 1. Робимо запит: шукаємо МИНУЛІ візити (ті, що вже відбулися)
+      // 1. Шукаємо минулі візити
       final querySnapshot = await _firestore
           .collection('appointments')
           .where('patientId', isEqualTo: userId)
-          .where('date', isLessThanOrEqualTo: todayDate) // Тільки минулі дати
-          .orderBy('date', descending: true)    // Від нових до старих
-          .limit(5)                             // Тільки 5 останніх
+          .where('date', isLessThanOrEqualTo: todayDate)
+          .orderBy('date', descending: true)
+          .limit(5)
           .get();
 
-      // 2. Використовуємо StringBuffer для створення тексту
+      // 2. Формуємо текст історії
       StringBuffer historyBuffer = StringBuffer();
       historyBuffer.writeln("Patient's Medical History (Last 5 visits):");
 
@@ -77,7 +77,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           final data = doc.data();
           final date = data['date'] ?? 'Unknown date';
           final doctor = data['doctorName'] ?? 'Unknown doctor';
-          // Якщо результатів ще немає, пишемо про це
           final results = data['visitResults'] ?? 'No notes provided by doctor.';
 
           historyBuffer.writeln("- Date: $date");
@@ -87,7 +86,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         }
       }
 
-      // 3. Відкриваємо екран і передаємо готовий текст
+      // 3. Відкриваємо екран ШІ
       if (mounted) {
         Navigator.push(
           context,
@@ -107,10 +106,19 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isAiLoading = false; // Вимикаємо завантаження
+          _isAiLoading = false;
         });
       }
     }
+  }
+
+  // --- НАВІГАЦІЯ ---
+  Future<void> _navigateToProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HealthProfileScreen()),
+    );
+    _loadProfileData(); // Оновлюємо дані після повернення з профілю
   }
 
   @override
@@ -142,12 +150,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               children: [
                 _buildWelcomeMessage(theme),
                 const SizedBox(height: 24),
-                _buildAIAssistant(context, theme), // Кнопка ШІ тут
+
+                // Кнопка ШІ
+                _buildAIAssistant(context, theme),
                 const SizedBox(height: 8),
+
+                // Кнопка запису до лікаря
                 _buildBookAction(context, theme),
                 const SizedBox(height: 30),
+
+                // Список записів
                 _buildMyAppointments(context, theme),
                 const SizedBox(height: 30),
+
+                // 👇 НОВИЙ ЕЛЕМЕНТ: Карусель порад
+                const HealthTipsCarousel(),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -156,7 +174,31 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  // --- Віджети Екрану ---
+  // --- UI ВІДЖЕТИ ---
+
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryTeal = theme.colorScheme.primary;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        GestureDetector(
+          onTap: _navigateToProfile,
+          child: CircleAvatar(
+            radius: 25,
+            backgroundColor: Colors.grey.shade200,
+            backgroundImage: _avatarUrl != null && _avatarUrl!.startsWith('assets/')
+                ? AssetImage(_avatarUrl!)
+                : null,
+            child: _avatarUrl == null || !_avatarUrl!.startsWith('assets/')
+                ? Icon(Icons.person, color: primaryTeal, size: 30)
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildWelcomeMessage(ThemeData theme) {
     return Column(
@@ -180,7 +222,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  // 👇 ОНОВЛЕНО: Віджет кнопки AI Assistant
   Widget _buildAIAssistant(BuildContext context, ThemeData theme) {
     return Card(
       elevation: 0,
@@ -189,7 +230,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: InkWell(
-        // Блокуємо натискання, якщо йде завантаження
         onTap: _isAiLoading ? null : _openAIAssistantWithHistory,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -211,7 +251,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      // Змінюємо текст, якщо йде завантаження
                       _isAiLoading ? 'Analyzing history...' : 'Ask AI based on your history',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
@@ -220,13 +259,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   ],
                 ),
               ),
-              // Показуємо спінер або стрілочку
               _isAiLoading
                   ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2)
-              )
+                  child: CircularProgressIndicator(strokeWidth: 2))
                   : Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
@@ -248,10 +285,58 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  // ... (Решта методів: _buildMyAppointments, _buildAppointmentCard, etc. залишаються без змін)
-
-  // Для економії місця я їх не дублюю, але вони повинні бути тут, як у вашому старому файлі.
-  // 👇 Скопіюйте сюди методи _buildMyAppointments, _buildAppointmentCard, _buildNoAppointmentsCard, _buildMainActionButton, _navigateToProfile, _buildHeader
+  Widget _buildMainActionButton({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: color.withOpacity(0.1),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildMyAppointments(BuildContext context, ThemeData theme) {
     final String currentUserId = _auth.currentUser!.uid;
@@ -412,86 +497,162 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       ),
     );
   }
+}
 
-  Widget _buildMainActionButton({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: color.withOpacity(0.1),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+// =========================================================
+// 👇 НОВИЙ ВІДЖЕТ: КАРУСЕЛЬ КОРИСНИХ ПОРАД (Daily Tips)
+// =========================================================
+class HealthTipsCarousel extends StatefulWidget {
+  const HealthTipsCarousel({super.key});
+
+  @override
+  State<HealthTipsCarousel> createState() => _HealthTipsCarouselState();
+}
+
+class _HealthTipsCarouselState extends State<HealthTipsCarousel> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  Timer? _timer;
+
+  // Локальна база порад
+  final List<Map<String, dynamic>> _tips = [
+    {
+      "icon": Icons.local_drink,
+      "color": Colors.blue.shade100,
+      "text": "Drink at least 8 glasses of water a day to stay hydrated."
+    },
+    {
+      "icon": Icons.directions_walk,
+      "color": Colors.green.shade100,
+      "text": "A 30-minute walk daily can significantly improve heart health."
+    },
+    {
+      "icon": Icons.bedtime,
+      "color": Colors.indigo.shade100,
+      "text": "Good sleep (7-8 hours) improves immunity and mood."
+    },
+    {
+      "icon": Icons.apple,
+      "color": Colors.red.shade100,
+      "text": "An apple a day... Eating fruits boosts your vitamin intake."
+    },
+    {
+      "icon": Icons.self_improvement,
+      "color": Colors.orange.shade100,
+      "text": "Take deep breaths. Reducing stress is key to a healthy life."
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Автоматичне перемикання кожні 5 секунд
+    _timer = Timer.periodic(const Duration(seconds: 5), (Timer timer) {
+      if (_currentPage < _tips.length - 1) {
+        _currentPage++;
+      } else {
+        _currentPage = 0;
+      }
+
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentPage,
+          duration: const Duration(milliseconds: 1000),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Text(
+            'Daily Health Tips',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 100, // Висота блоку
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: _tips.length,
+            onPageChanged: (int index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final tip = _tips[index];
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                decoration: BoxDecoration(
+                  color: tip['color'],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.white.withOpacity(0.6),
+                        child: Icon(tip['icon'], color: Colors.black54),
+                      ),
                     ),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 16.0, top: 10, bottom: 10),
+                        child: Center(
+                          child: Text(
+                            tip['text'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
-            ],
+              );
+            },
           ),
         ),
-      ),
-    );
-  }
-
-  Future<void> _navigateToProfile() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const HealthProfileScreen()),
-    );
-    _loadProfileData();
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryTeal = theme.colorScheme.primary;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        GestureDetector(
-          onTap: _navigateToProfile,
-          child: CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.grey.shade200,
-            backgroundImage: _avatarUrl != null && _avatarUrl!.startsWith('assets/')
-                ? AssetImage(_avatarUrl!)
-                : null,
-            child: _avatarUrl == null || !_avatarUrl!.startsWith('assets/')
-                ? Icon(Icons.person, color: primaryTeal, size: 30)
-                : null,
+        // Індикатор сторінок (крапочки)
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _tips.length,
+                (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              height: 6,
+              width: _currentPage == index ? 20 : 6,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
           ),
         ),
       ],
