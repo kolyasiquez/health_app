@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart'; // 👇 Додано для пошти
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/screens/common/appointments_list_screen.dart';
-// 👇 Імпорт екрану зміни пароля (переконайтеся, що файл створено в папці auth)
 import 'package:health_app/screens/auth/change_password_screen.dart';
+// 👇 Імпорт нового екрану умов
+import 'package:health_app/screens/common/terms_screen.dart';
 
-// Константи для аватарок
 const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
 const List<String> kDefaultAvatarPaths = [
   'assets/avatars/avatar_1.png',
@@ -54,6 +55,35 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // --- ЛОГІКА EMAIL ПІДТРИМКИ ---
+  Future<void> _contactSupport() async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'support@healthapp.com', // Замініть на реальну пошту якщо треба
+      query: _encodeQueryParameters(<String, String>{
+        'subject': 'Support Request: ${_userName ?? "User"}',
+        'body': 'Describe your issue here:\n\n',
+      }),
+    );
+
+    try {
+      await launchUrl(emailLaunchUri);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch email client')),
+        );
+      }
+    }
+  }
+
+  // Допоміжна функція для кодування параметрів URL
+  String? _encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
   }
 
   // --- ЛОГІКА ЗМІНИ АВАТАРКИ ---
@@ -127,7 +157,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           );
         }
       } catch (e) {
-        // Handle error silently or show toast
+        // Handle error
       }
     }
   }
@@ -233,11 +263,11 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
             const SizedBox(height: 20),
 
-            // 👇 НОВА СЕКЦІЯ: БЕЗПЕКА (CHANGE PASSWORD)
+            // СЕКЦІЯ 2: БЕЗПЕКА
             _buildSectionTitle('Security'),
 
             _buildMenuTile(
-              icon: Icons.lock_reset, // Або Icons.vpn_key
+              icon: Icons.lock_reset,
               title: 'Change Password',
               subtitle: 'Update your login credentials',
               onTap: () {
@@ -250,10 +280,32 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
               },
             ),
 
+            // 👇 Help & Support додаємо сюди або в Application, логічно тут або нижче
+            _buildMenuTile(
+              icon: Icons.help_outline,
+              title: 'Help & Support',
+              subtitle: 'Contact us for assistance',
+              onTap: _contactSupport, // Виклик функції відправки листа
+            ),
+
             const SizedBox(height: 20),
 
             // СЕКЦІЯ 3: ПРО ПРОГРАМУ
             _buildSectionTitle('Application'),
+
+            // 👇 Terms & Conditions
+            _buildMenuTile(
+              icon: Icons.description_outlined,
+              title: 'Terms & Privacy Policy',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TermsScreen(),
+                  ),
+                );
+              },
+            ),
 
             _buildMenuTile(
               icon: Icons.info_outline,
