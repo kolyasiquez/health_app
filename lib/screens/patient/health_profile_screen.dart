@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:health_app/services/api_service.dart';
-// 👇 Імпорт нашого нового спільного екрану
 import 'package:health_app/screens/common/appointments_list_screen.dart';
+// 👇 Імпорт екрану зміни пароля (переконайтеся, що файл створено в папці auth)
+import 'package:health_app/screens/auth/change_password_screen.dart';
 
 // Константи для аватарок
 const String kDefaultPlaceholderPath = 'assets/avatars/placeholder.png';
@@ -126,7 +127,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
           );
         }
       } catch (e) {
-        // Handle error silently
+        // Handle error silently or show toast
       }
     }
   }
@@ -205,7 +206,6 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
             // СЕКЦІЯ 1: МЕДИЧНІ ДАНІ
             _buildSectionTitle('Medical Records'),
 
-            // Перехід на екран всіх записів (Common Screen)
             _buildMenuTile(
               icon: Icons.history,
               title: 'All Appointments',
@@ -214,14 +214,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    // isDoctor: false, бо це профіль пацієнта
                     builder: (context) => const AppointmentsListScreen(isDoctor: false),
                   ),
                 );
               },
             ),
 
-            // Заглушка для майбутнього функціоналу
             _buildMenuTile(
               icon: Icons.note_alt_outlined,
               title: 'Medical Notes',
@@ -235,7 +233,26 @@ class _HealthProfileScreenState extends State<HealthProfileScreen> {
 
             const SizedBox(height: 20),
 
-            // СЕКЦІЯ 2: ПРО ПРОГРАМУ
+            // 👇 НОВА СЕКЦІЯ: БЕЗПЕКА (CHANGE PASSWORD)
+            _buildSectionTitle('Security'),
+
+            _buildMenuTile(
+              icon: Icons.lock_reset, // Або Icons.vpn_key
+              title: 'Change Password',
+              subtitle: 'Update your login credentials',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // СЕКЦІЯ 3: ПРО ПРОГРАМУ
             _buildSectionTitle('Application'),
 
             _buildMenuTile(
