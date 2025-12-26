@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:health_app/services/api_service.dart';
 import 'package:health_app/constants/constants.dart';
-import 'package:health_app/screens/auth/login_screen.dart'; // Перевір імпорт
+// 👇 1. Додано імпорт екрану зміни пароля
+import 'package:health_app/screens/auth/change_password_screen.dart';
 
 // 🚀 ОНОВЛЕНИЙ СПИСОК (нова папка)
 const List<String> kDoctorAvatarPaths = [
@@ -20,7 +21,7 @@ const List<String> kDoctorAvatarPaths = [
   'assets/doctor_avatars/doctor_12.png',
 ];
 
-// Заглушка (можна взяти першого доктора або загальну картинку)
+// Заглушка
 const String kDefaultPlaceholderPath = 'assets/doctor_avatars/doctor_1.png';
 
 class DoctorProfileScreen extends StatefulWidget {
@@ -56,7 +57,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           _nameController.text = userData['name'] ?? '';
           _bioController.text = userData['bio'] ?? '';
 
-          // Якщо аватарки немає - ставимо дефолтну
           _avatarUrl = userData['avatarUrl'] ?? kDefaultPlaceholderPath;
 
           String? currentSpec = userData['specialization'];
@@ -114,7 +114,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                         ),
                         child: CircleAvatar(
                           backgroundColor: Colors.transparent,
-                          backgroundImage: AssetImage(assetPath), // Завантажуємо локально
+                          backgroundImage: AssetImage(assetPath),
                         ),
                       ),
                     );
@@ -136,7 +136,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         'name': _nameController.text.trim(),
         'bio': _bioController.text.trim(),
         'specialization': _selectedSpecialization,
-        'avatarUrl': _avatarUrl, // Зберігаємо локальний шлях (assets/...)
+        'avatarUrl': _avatarUrl,
       });
 
       if (mounted) {
@@ -206,6 +206,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           : SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Stack(
@@ -213,7 +214,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.grey[200],
-                    // Відображаємо asset
                     backgroundImage: _avatarUrl != null
                         ? AssetImage(_avatarUrl!)
                         : const AssetImage(kDefaultPlaceholderPath),
@@ -276,6 +276,43 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
               label: 'Bio / Description',
               icon: Icons.description_outlined,
               maxLines: 4,
+            ),
+
+            const SizedBox(height: 30),
+
+            // 👇 2. Додано секцію Security
+            Text(
+              'SECURITY',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 👇 3. Кнопка Change Password (стилізована під інпути)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                border: Border.all(color: Colors.grey.shade500), // Колір рамки як у TextField
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.lock_outline, color: Colors.black54),
+                title: const Text('Change Password', style: TextStyle(fontSize: 16)),
+                subtitle: const Text('Update your login credentials', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ChangePasswordScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
 
             const SizedBox(height: 40),
