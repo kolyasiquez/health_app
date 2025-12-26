@@ -547,7 +547,7 @@ class _HealthTipsCarouselState extends State<HealthTipsCarousel> {
   void initState() {
     super.initState();
     // Автоматичне перемикання кожні 5 секунд
-    _timer = Timer.periodic(const Duration(seconds: 5), (Timer timer) {
+    _timer = Timer.periodic(const Duration(seconds: 10), (Timer timer) {
       if (_currentPage < _tips.length - 1) {
         _currentPage++;
       } else {
@@ -557,7 +557,7 @@ class _HealthTipsCarouselState extends State<HealthTipsCarousel> {
       if (_pageController.hasClients) {
         _pageController.animateToPage(
           _currentPage,
-          duration: const Duration(milliseconds: 1000),
+          duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
       }
